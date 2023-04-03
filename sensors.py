@@ -34,10 +34,17 @@ class LidarManager:
         offset = carla.Location(args.x, args.y, args.z)
         self.lidar_transform = carla.Transform(carla.Location(x=-0.5, z=1.8) + offset)
         self.lidar = None
+
+        self.frame_counter = 0
+        self.keyframe_counter = 0
+        self.keyframe_interval = args.keyframe_interval
+        self.keyframe_max = args.keyframe_count
+        self.keyframe_list = []
         
         ### Open3d Setup ###
         self.pc = o3d.geometry.PointCloud()
-        self.vis = None
+        self.icp_pc = o3d.geometry.PointCloud()
+        self.vis = {}
         self.color_map = np.array(cm.get_cmap('plasma').colors)
         self.color_range = np.linspace(0.0, 1.0, self.color_map.shape[0])
 
@@ -84,11 +91,20 @@ class LidarManager:
         self.pc.points = o3d.utility.Vector3dVector(coords)
         self.pc.colors = o3d.utility.Vector3dVector(int_color)
 
+        if not self.frame_counter % self.keyframe_interval: # Every [interval] frames
+            self.add_keyframe(coords, int_color)
+            self.keyframe_counter += 1
+        self.frame_counter += 1
 
-    def start_vis(self):
+    def add_keyframe(self, coords, colors):
+        idx = self.keyframe_counter % self.keyframe_max
+        self.keyframe_list[idx].points = o3d.utility.Vector3dVector(coords)
+        self.keyframe_list[idx].colors = o3d.utility.Vector3dVector(colors)
+
+    def start_vis(self, type):
         vis = o3d.visualization.Visualizer()
         vis.create_window(
-            window_name='Carla Lidar',
+            window_name=f'Carla {type}',
             width=960,
             height=540,
             left=480,
@@ -96,4 +112,4 @@ class LidarManager:
         vis.get_render_option().background_color = [0.05, 0.05, 0.05]
         vis.get_render_option().point_size = 1
         vis.get_render_option().show_coordinate_frame = True        
-        self.vis = vis
+        self.vis[type] = vis

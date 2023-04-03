@@ -24,8 +24,6 @@ except IndexError:
 
 import carla
 import random
-import time
-from datetime import datetime
 import utils_ref, sensors
 
 
@@ -58,9 +56,11 @@ def main(args):
         ### Lidar Setup ###
         lidar_manager = sensors.LidarManager(args, world)
         lidar_manager.spawn_lidar(vehicle)
-        lidar_manager.start_vis()
+        lidar_manager.start_vis('Lidar')
+        lidar_manager.start_vis('ICP')
+        
 
-        utils_ref.vis_loop(world, lidar_manager.vis, lidar_manager.pc)
+        utils_ref.vis_loop(world, lidar_manager)
 
     except KeyboardInterrupt:
         print('\ndestroying actors')
@@ -69,7 +69,8 @@ def main(args):
 
         vehicle.destroy()
         lidar_manager.lidar.destroy()
-        lidar_manager.vis.destroy_window()
+        for vis in lidar_manager.vis.values():
+            vis.destroy_window()
         print('done.')
 
 if __name__ == '__main__':

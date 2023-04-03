@@ -63,6 +63,16 @@ def parse_carla_args():
         type=int,
         help='lidar\'s points per second (default: 500000)')
     argparser.add_argument(
+        '--keyframe-interval',
+        default=10,
+        type=int,
+        help='lidar\'s number of scans between lidar keyframes (default: 10)')
+    argparser.add_argument(
+        '--keyframe-count',
+        default=5,
+        type=int,
+        help='lidar\'s max count of stored keyframes (default: 5)')
+    argparser.add_argument(
         '-x',
         default=0.0,
         type=float,
@@ -81,16 +91,27 @@ def parse_carla_args():
     return args
 
 
-def vis_loop(world, vis, point_cloud): # From CVC @ UAB
+def vis_loop(world, lidar_manager): # From CVC @ UAB
+    point_cloud = lidar_manager.pc
+    slam_point_cloud = lidar_manager.icp_pc
+    currrent_vis = lidar_manager.vis['Lidar']
+    icp_vis = lidar_manager.vis['ICP']
+    
     frame = 0
     dt0 = datetime.now()
     while True:
         if frame == 2:
-            vis.add_geometry(point_cloud)
-        vis.update_geometry(point_cloud)
+            currrent_vis.add_geometry(point_cloud)
+        if frame == 20:
+            icp_vis.add_geometry(slam_point_cloud)
+        currrent_vis.update_geometry(point_cloud)
+        icp_vis.update_geometry(slam_point_cloud)
 
-        vis.poll_events()
-        vis.update_renderer()
+        currrent_vis.poll_events()
+        currrent_vis.update_renderer()
+        
+        icp_vis.poll_events()
+        icp_vis.update_renderer()
         
         time.sleep(0.005) # Fix Open3d jittering -> per reference commment
         world.tick()
