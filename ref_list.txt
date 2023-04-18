@@ -1,0 +1,3 @@
+https://github.com/gisbi-kim/PyICP-SLAM/
+2020 Computer Vision Center (CVC) at the Universitat Autonoma de Barcelona (UAB): open3d_lidar.
+https://github.com/ucla-mobility/OpenCDA

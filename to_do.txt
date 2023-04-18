@@ -1,0 +1,5 @@
+Evaluate current pose graphs
+Improve loop detection and loop closure
+V2V communication
+V2I communication
+Submapping
