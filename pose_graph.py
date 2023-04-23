@@ -52,9 +52,9 @@ class PoseGraphManager:
                                      self.loop_cov))
         
     def optimize(self):
-        optimizer = gtsam.LevenbergMarquardtOptimizer(self.graph_factors, 
-                                                           self.graph_values, 
-                                                           gtsam.LevenbergMarquardtParams())
+        optimizer = gtsam.LevenbergMarquardtOptimizer(self.graph_factors,
+                                                      self.graph_values, 
+                                                      gtsam.LevenbergMarquardtParams())
         self.graph_optimized = optimizer.optimize()
 
         pose = self.graph_optimized.atPose3(gtsam.symbol('x', self.current_node_idx))
