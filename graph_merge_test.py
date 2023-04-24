@@ -10,12 +10,16 @@ def compare_symbol_index(symbol1, symbol2):
     return gtsam.symbolIndex(symbol1) - gtsam.symbolIndex(symbol2)
 
 
+def value_safe_add(graph, symbol, pose):
+    try:
+        graph.insert(symbol, pose)
+    except RuntimeError:
+        print(f"Key {chr(gtsam.symbolChr(symbol))}{gtsam.symbolIndex(symbol)} already exists in graph")
+
+
 def visualize_pose_graph(graph, fig_name=None):
     graph_factors = graph[0]
     graph_values = graph[1]
-
-    # Extract poses from the graph
-    poses = {symbol: graph_values.atPose3(symbol) for symbol in graph_values.keys()}
 
     # Plot the poses in 3D space
     fig = plt.figure()
@@ -28,8 +32,8 @@ def visualize_pose_graph(graph, fig_name=None):
         factor = graph_factors.at(idx)
         for key in factor.keys():
             if key not in drawn.keys():
-                position = poses[key].translation()
-                # orientation = poses[key].rotation().matrix()
+                position = graph_values.atPose3(key).translation()
+                # orientation = graph_values.atPose3(key).matrix()
                 label = f"{chr(gtsam.symbolChr(key))}{gtsam.symbolIndex(key)}"
                 ax.scatter(position[0], position[1], position[2], marker='o')
                 ax.text(position[0], position[1], position[2], label)
@@ -53,21 +57,21 @@ def merge_pose_graphs(graph1, graph2):
     merged_graph_values = deepcopy(graph1[1])
 
     # Copy all factors and variables from the second graph into the merged graph,
-    # remapping the symbol IDs to avoid conflicts with the first graph
-    previous_symbol = None
-    for symbol in sorted(graph2[1].keys(), key=functools.cmp_to_key(compare_symbol_index)):
-        pose = graph2[1].atPose3(symbol)
-        if chr(gtsam.symbolChr(symbol)) == 's':
-            symbol = gtsam.symbol('a', gtsam.symbolIndex(symbol))
-            if previous_symbol:
-                merged_graph.add(gtsam.BetweenFactorPose3(previous_symbol, symbol, pose, noise_model))
-        else:
-            merged_graph_values.insert(symbol, pose)
-            if previous_symbol:
-                merged_graph.add(gtsam.BetweenFactorPose3(previous_symbol, symbol, pose, noise_model))
-            else:
-                merged_graph.add(gtsam.PriorFactorPose3(symbol, pose, noise_model))
-        previous_symbol = symbol
+    # and connect the two graphs on shared nodes
+    for idx in range(graph2[0].size()):
+        factor = graph2[0].at(idx)
+        if isinstance(factor, gtsam.PriorFactorPose3):
+            symbol = factor.keys()[0]
+            pose = graph2[1].atPose3(symbol)
+            value_safe_add(merged_graph_values, symbol, pose)
+            merged_graph.add(gtsam.PriorFactorPose3(symbol, pose, noise_model))
+        elif isinstance(factor, gtsam.BetweenFactorPose3):
+            symbol1 = factor.keys()[0]
+            symbol2 = factor.keys()[1]
+            pose = factor.measured()
+            value_safe_add(merged_graph_values, symbol1, pose)
+            value_safe_add(merged_graph_values, symbol2, pose)
+            merged_graph.add(gtsam.BetweenFactorPose3(symbol1, symbol2, pose, noise_model))
     return (merged_graph, merged_graph_values)
 
 
@@ -80,28 +84,33 @@ def optimize_pose_graph(graph):
     return (graph[0], result)
 
 
+# TODO: Get rid of code redundancy between the first and second graph generators
 def generate_pose_graphs(num_nodes, shared_nodes):
     noise_model = gtsam.noiseModel.Diagonal.Sigmas([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
 
     # Generate random poses and odometry factors for the first graph
     graph1 = gtsam.NonlinearFactorGraph()
     graph1_values = gtsam.Values()
-    node_name = 'a'
-    pose = gtsam.Pose3()
-    graph1.add(gtsam.PriorFactorPose3(gtsam.symbol(node_name, 0), pose, noise_model))
-    graph1_values.insert(gtsam.symbol(node_name, 0), pose)
-    for i in range(1, num_nodes):
-        odometry = gtsam.Pose3(gtsam.Rot3.Rodrigues(random.uniform(-0.1, 0.1), 
-                                                    random.uniform(-0.1, 0.1), 
-                                                    random.uniform(-0.1, 0.1)), 
-                                                    gtsam.Point3(random.uniform(-0.1, 0.1), 
-                                                                 random.uniform(-0.1, 0.1), 
-                                                                 random.uniform(-0.1, 0.1)))
-        pose = gtsam.Pose3(np.matmul(pose.matrix(), odometry.matrix()))
-        graph1.add(gtsam.BetweenFactorPose3(gtsam.symbol(node_name, i-1),
-                                            gtsam.symbol(node_name, i),
-                                            odometry, noise_model))
-        graph1_values.insert(gtsam.symbol(node_name, i), pose)
+    
+    for i in range(num_nodes):
+        node_name = 's' if i in shared_nodes else 'a'
+        if i == 0:
+            pose = gtsam.Pose3()
+            graph1.add(gtsam.PriorFactorPose3(gtsam.symbol(node_name, 0), pose, noise_model))
+            graph1_values.insert(gtsam.symbol(node_name, 0), pose)
+        else:
+            odometry = gtsam.Pose3(gtsam.Rot3.Rodrigues(random.uniform(-0.1, 0.1), 
+                                                        random.uniform(-0.1, 0.1), 
+                                                        random.uniform(-0.1, 0.1)), 
+                                                        gtsam.Point3(random.uniform(-0.1, 0.1), 
+                                                                    random.uniform(-0.1, 0.1), 
+                                                                    random.uniform(-0.1, 0.1)))
+            pose = gtsam.Pose3(np.matmul(pose.matrix(), odometry.matrix()))
+            graph1.add(gtsam.BetweenFactorPose3(gtsam.symbol(previous_node_name, i-1),
+                                                gtsam.symbol(node_name, i),
+                                                odometry, noise_model))
+            graph1_values.insert(gtsam.symbol(node_name, i), pose)
+        previous_node_name = node_name
     
     # Generate random poses and odometry factors for the second graph,
     # copying over some poses from the first graph to share nodes
@@ -109,9 +118,9 @@ def generate_pose_graphs(num_nodes, shared_nodes):
     graph2_values = gtsam.Values()
     previous_node_name = None
     for i in range(num_nodes):
-        if i in shared_nodes:       
-            pose = graph1_values.atPose3(gtsam.symbol('a', i))
-            node_name = 's'
+        if i in shared_nodes:  
+            node_name = 's'     
+            pose = graph1_values.atPose3(gtsam.symbol(node_name, i))
             if i == 0:
                 graph2.add(gtsam.PriorFactorPose3(gtsam.symbol(node_name, i), 
                                                   pose, noise_model))
