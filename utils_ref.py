@@ -88,7 +88,8 @@ def parse_carla_args():
     return args
 
 
-def vis_loop(world, lidar_manager):
+def vis_loop(world, viewpoint):
+    lidar_manager = viewpoint.lidar_manager
     point_cloud = lidar_manager.pc
     pc_vis = lidar_manager.vis
     

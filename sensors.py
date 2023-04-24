@@ -75,7 +75,7 @@ class LidarManager:
         self.lidar.listen(lambda data: self.lidar_callback(data))
     
     def lidar_callback(self, point_cloud):
-        coords, int_color = self.disp_lidar(point_cloud)
+        coords, int_color = self.format_for_vis(point_cloud)
 
         self.pc.points = o3d.utility.Vector3dVector(coords)
         self.pc.colors = o3d.utility.Vector3dVector(int_color)
@@ -84,7 +84,7 @@ class LidarManager:
             self.pose_graph_manager.update(self.pc)
         self.frame_counter += 1
 
-    def disp_lidar(self, point_cloud):
+    def format_for_vis(self, point_cloud):
         data = np.copy(np.frombuffer(point_cloud.raw_data, dtype=np.dtype('f4')))
         data = np.reshape(data, (int(data.shape[0] / 4), 4))
 
