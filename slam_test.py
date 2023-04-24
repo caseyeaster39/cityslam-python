@@ -23,7 +23,39 @@ except IndexError:
 # ==============================================================================
 
 import carla
+import gtsam
+import matplotlib.pyplot as plt
+
 import utils_ref, v2x
+
+
+def visualize_pose_graph(graph, fig_name=None):
+    graph_factors = graph[0]
+    graph_values = graph[1]
+
+    # Plot the poses in 3D space
+    fig = plt.figure()
+    if fig_name is not None:
+        fig.canvas.manager.set_window_title(fig_name)
+    ax = fig.add_subplot(111, projection='3d')
+    drawn = {}
+
+    for idx in range(graph_factors.size()):
+        factor = graph_factors.at(idx)
+        for key in factor.keys():
+            if key not in drawn.keys():
+                position = graph_values.atPose3(key).translation()
+                # orientation = graph_values.atPose3(key).matrix()
+                label = f"{chr(gtsam.symbolChr(key))}{gtsam.symbolIndex(key)}"
+                ax.scatter(position[0], position[1], position[2], marker='o')
+                ax.text(position[0], position[1], position[2], label)
+                drawn[key] = position
+        if isinstance(factor, gtsam.BetweenFactorPose3):
+            [key1, key2] = factor.keys()
+            ax.plot([drawn[key1][0], drawn[key2][0]],
+                    [drawn[key1][1], drawn[key2][1]],
+                    [drawn[key1][2], drawn[key2][2]], color='k')
+    input()
 
 
 def main(args):
@@ -52,18 +84,23 @@ def main(args):
         world.apply_settings(settings)      
 
         ### RSU Setup ###
-        v2x_manager.add_rsu(carla.Transform(carla.Location(x=-44.4, y=18.8, z=2.5)), 50, [])
+        v2x_manager.add_rsu(carla.Location(x=-44.4, y=18.8, z=2.5), 50, [])
         
         ### Main Loop ###
-        utils_ref.vis_loop(world, vehicle_manager)
+        utils_ref.vis_loop(world, v2x_manager)
 
     except KeyboardInterrupt:
+        gf = vehicle_manager.lidar_manager.pose_graph_manager.graph_factors
+        gv = vehicle_manager.lidar_manager.pose_graph_manager.graph_values
         print('\ndestroying actors')
         world.apply_settings(original_settings)
         traffic_manager.set_synchronous_mode(False)
 
         vehicle_manager.destroy_actors()
         print('done.')
+
+    plt.ion()
+    visualize_pose_graph((gf, gv), 'Pose Graph')
 
 if __name__ == '__main__':
     args = utils_ref.parse_carla_args()

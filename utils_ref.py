@@ -88,8 +88,8 @@ def parse_carla_args():
     return args
 
 
-def vis_loop(world, viewpoint):
-    lidar_manager = viewpoint.lidar_manager
+def vis_loop(world, v2x_manager):
+    lidar_manager = v2x_manager.vehicle_list[0].lidar_manager
     point_cloud = lidar_manager.pc
     pc_vis = lidar_manager.vis
     
@@ -98,6 +98,8 @@ def vis_loop(world, viewpoint):
     while True:
         if frame == 2: # Wait until a frame is available to be added
             pc_vis.add_geometry(point_cloud)
+        if frame == 10:
+            v2x_manager.ping()
             
         pc_vis.update_geometry(point_cloud)
         pc_vis.poll_events()

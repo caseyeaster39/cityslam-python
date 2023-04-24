@@ -34,5 +34,12 @@ class V2X_Manager:
         if rsu is None:
             raise ValueError(f"RSU with id_num {id_num} does not exist")
         rsu.listen(data)
+
+    def ping(self):
+        for rsu in self.rsu_list:
+            for vehicle in self.vehicle_list:
+                if rsu.ping_vehicle(vehicle):
+                    print(f"RSU {rsu.id_num} is in range of vehicle {vehicle.id_num}")
+                    # vehicle.post_data(self, rsu.id_num, {'sender': vehicle.id_num, 'data': f'ping from {vehicle.id_num}'})
     
     

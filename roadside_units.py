@@ -1,3 +1,5 @@
+import numpy as np
+
 class RSU:
     def __init__(self, id_num, location, communication_range, neighbors: list, manager) -> None:
         self.id_num = id_num
@@ -8,7 +10,7 @@ class RSU:
 
     def listen(self, data_dict: dict):
         # NOTE: be careful calling post from here, it could cause an infinite loop if its own id is not checked
-        print(f"RSU {self.id_num} received data: {data_dict} from RSU {data_dict['id_num']}")
+        print(f"RSU {self.id_num} received data: {data_dict['data']} from entity {data_dict['sender']}")
 
     def post(self, id_num, data):
         self.manager.post(id_num, data)
@@ -17,6 +19,6 @@ class RSU:
         self.neighbors.append(neighbor)
 
     def ping_vehicle(self, vehicle):
-        if vehicle.location.distance(self.location) <= self.v2i_range:
+        if self.location.distance(vehicle.location.location) <= self.v2i_range:
             return True
         return False

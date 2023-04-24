@@ -5,6 +5,7 @@ class Vehicle:
     def __init__(self, id_num, world, args, location, communication_range, manager) -> None:
         self.world = world
         self.lidar_manager = sensors.LidarManager(args, self.world)
+        # TODO: add other sensors in a sensor manager, bring pose graph manager in here
         
         self.vehicle = None  
         self.id_num = id_num
@@ -12,7 +13,8 @@ class Vehicle:
         self.communication_range = communication_range
         self.manager = manager
 
-    def spawn_vehicle(self, vehicle_type, behavior, location=None):        
+    def spawn_vehicle(self, vehicle_type, behavior, location=None):      
+        # TODO: add safe spawn that defaults to random with a runtime error (collision)  
         blueprint_library = self.world.get_blueprint_library()
         bp = blueprint_library.filter(vehicle_type)[0]
         ego_init = random.choice(self.world.get_map().get_spawn_points()) if location is None else location
