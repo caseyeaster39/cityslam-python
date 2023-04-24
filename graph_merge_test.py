@@ -1,13 +1,8 @@
 import gtsam
 import random
-import functools
 import matplotlib.pyplot as plt
 import numpy as np
 from copy import deepcopy
-
-
-def compare_symbol_index(symbol1, symbol2):
-    return gtsam.symbolIndex(symbol1) - gtsam.symbolIndex(symbol2)
 
 
 def value_safe_add(graph, symbol, pose):
