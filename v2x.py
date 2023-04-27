@@ -9,13 +9,13 @@ class V2X_Manager:
         self.rsu_list = []
         self.vehicle_list = []
 
-    def add_rsu(self, location, communication_range, neighbors: list):
-        rsu = roadside_units.RSU(uuid.uuid4(), location, communication_range, neighbors, self)
+    def add_rsu(self, spawn_location, communication_range, neighbors: list):
+        rsu = roadside_units.RSU(uuid.uuid4(), spawn_location, communication_range, neighbors, self)
         self.rsu_list.append(rsu)
 
-    def add_vehicle(self, vehicle_type, behavior, location=None, communication_range=50, sensors = [], vis=False):
-        vehicle = vehicles.Vehicle(uuid.uuid4(), self.world, self.args, location, communication_range, self)
-        vehicle.spawn_vehicle(vehicle_type, behavior, location)
+    def add_vehicle(self, vehicle_type, behavior, spawn_location=None, sensors = [], vis=False):
+        vehicle = vehicles.Vehicle(uuid.uuid4(), self.world, self.args, self)
+        vehicle.spawn_vehicle(vehicle_type, behavior, spawn_location)
         if len(sensors) > 0:
             for sensor in sensors:
                 vehicle.spawn_sensor(sensor_type=sensor)
@@ -39,7 +39,6 @@ class V2X_Manager:
         for rsu in self.rsu_list:
             for vehicle in self.vehicle_list:
                 if rsu.ping_vehicle(vehicle):
-                    print(f"RSU {rsu.id_num} is in range of vehicle {vehicle.id_num}")
-                    # vehicle.post_data(self, rsu.id_num, {'sender': vehicle.id_num, 'data': f'ping from {vehicle.id_num}'})
+                    vehicle.handle_ping(rsu.id_num)
     
     

@@ -173,15 +173,6 @@ def generate_random_pose3(max_range=1):
     return pose
 
 
-def get_node_connections(graph, node_key):
-    # Get all the factors in the graph
-    symbols = graph.keyVector()
-
-    # Initialize an empty list to hold the connections
-    connections = [connection for connection in graph.at(node_key).keys()]
-    return connections
-
-
 if __name__ == "__main__":
     plt.ion()
 

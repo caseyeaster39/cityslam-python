@@ -70,7 +70,7 @@ def main(args):
         ### Vehicle Setup ###
         spawn_location = carla.Transform(carla.Location(x=0, y=16.7, z=0.5), 
                                          carla.Rotation(yaw=180))
-        v2x_manager.add_vehicle(args.filter, 'autopilot', location=spawn_location, sensors=['Lidar'], vis=True)
+        v2x_manager.add_vehicle(args.filter, 'autopilot', spawn_location=spawn_location, sensors=['Lidar'], vis=True)
         vehicle_manager = v2x_manager.vehicle_list[0]
 
         ### Wold Setup ###
@@ -84,14 +84,14 @@ def main(args):
         world.apply_settings(settings)      
 
         ### RSU Setup ###
-        v2x_manager.add_rsu(carla.Location(x=-44.4, y=18.8, z=2.5), 50, [])
+        v2x_manager.add_rsu(carla.Location(x=-44.4, y=18.8, z=2.5), 44, [])
         
         ### Main Loop ###
         utils_ref.vis_loop(world, v2x_manager)
 
     except KeyboardInterrupt:
-        gf = vehicle_manager.lidar_manager.pose_graph_manager.graph_factors
-        gv = vehicle_manager.lidar_manager.pose_graph_manager.graph_values
+        # gf = vehicle_manager.lidar_manager.pose_graph_manager.graph_factors
+        # gv = vehicle_manager.lidar_manager.pose_graph_manager.graph_values
         print('\ndestroying actors')
         world.apply_settings(original_settings)
         traffic_manager.set_synchronous_mode(False)
@@ -99,8 +99,17 @@ def main(args):
         vehicle_manager.destroy_actors()
         print('done.')
 
-    plt.ion()
-    visualize_pose_graph((gf, gv), 'Pose Graph')
+    except RuntimeError as error:
+        print(error)
+        print('\ndestroying actors')
+        world.apply_settings(original_settings)
+        traffic_manager.set_synchronous_mode(False)
+
+        vehicle_manager.destroy_actors()
+        print('done.')
+
+    # plt.ion()
+    # visualize_pose_graph((gf, gv), 'Pose Graph')
 
 if __name__ == '__main__':
     args = utils_ref.parse_carla_args()

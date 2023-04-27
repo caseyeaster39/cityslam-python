@@ -26,8 +26,25 @@ from matplotlib import cm
 
 import utils_ref, pose_graph
 
-# Reference: 2020 Computer Vision Center (CVC) at the Universitat Autonoma de
-# Barcelona (UAB): open3d_lidar.
+
+class SensorManager:
+    def __init__(self, world) -> None:
+        self.world = world
+
+    def spawn_lidar(self, args, vehicle):
+        self.lidar_manager = LidarManager(args, self.world)
+        self.lidar_manager.spawn_lidar(vehicle)   
+
+    def start_vis(self, sensor_type):
+        if sensor_type.lower() == 'lidar':
+            self.lidar_manager.start_vis()
+        else:
+            print('Sensor type not supported')
+
+    def destroy_actors(self):
+        self.lidar_manager.destroy_actors()
+
+
 class LidarManager:
     def __init__(self, args, world) -> None:
         ### Lidar Setup ###
@@ -47,6 +64,7 @@ class LidarManager:
         self.frame_counter = 1
         self.keyframe_interval = args.keyframe_interval
 
+        # TODO: Move to vehicle manager (and to rsus?)
         self.pose_graph_manager = pose_graph.PoseGraphManager()
         self.pose_graph_manager.add_prior()
         self.pose_graph_manager.set_loop_detector(utils_ref.ScanContextManager())
@@ -114,3 +132,13 @@ class LidarManager:
         vis.get_render_option().point_size = 1
         vis.get_render_option().show_coordinate_frame = True        
         self.vis = vis
+
+    def destroy_actors(self):
+        self.lidar.destroy()
+        self.vis.destroy_window()
+
+####################################################################################################
+# References: 
+# LidarManager:
+#   2020 Computer Vision Center (CVC) at the Universitat Autonoma de Barcelona (UAB): open3d_lidar.
+####################################################################################################

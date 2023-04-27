@@ -1,23 +1,27 @@
 import random
+import collections
 import sensors
 
 class Vehicle:
-    def __init__(self, id_num, world, args, location, communication_range, manager) -> None:
+    def __init__(self, id_num, world, args, manager) -> None:
         self.world = world
-        self.lidar_manager = sensors.LidarManager(args, self.world)
-        # TODO: add other sensors in a sensor manager, bring pose graph manager in here
+        self.args = args
+        self.sensor_manager = sensors.SensorManager(self.world)
+        # TODO: bring pose graph manager in here
+        # TODO: bring loop detector in here
+        # TODO: store data in a data manager
         
         self.vehicle = None  
         self.id_num = id_num
-        self.location = location
-        self.communication_range = communication_range
+        self.in_range_rsu = collections.deque(maxlen=args.rsu_queue_size)
         self.manager = manager
 
-    def spawn_vehicle(self, vehicle_type, behavior, location=None):      
-        # TODO: add safe spawn that defaults to random with a runtime error (collision)  
+        self.data = {}
+
+    def spawn_vehicle(self, vehicle_type, behavior, spawn_location=None):      
         blueprint_library = self.world.get_blueprint_library()
         bp = blueprint_library.filter(vehicle_type)[0]
-        ego_init = random.choice(self.world.get_map().get_spawn_points()) if location is None else location
+        ego_init = random.choice(self.world.get_map().get_spawn_points()) if spawn_location is None else spawn_location
         self.vehicle = self.world.spawn_actor(bp, ego_init)
         if behavior == 'autopilot':
             self.vehicle.set_autopilot(True)
@@ -27,22 +31,37 @@ class Vehicle:
 
     def spawn_sensor(self, sensor_type):
         if sensor_type.lower() == 'lidar':
-            self.add_lidar()
+            self.sensor_manager.spawn_lidar(self.args, self.vehicle)
         else:
             print('Sensor type not supported')
 
-    def add_lidar(self):
-        self.lidar_manager.spawn_lidar(self.vehicle)
-
     def start_vis(self):
-        self.lidar_manager.start_vis()
+        self.sensor_manager.start_vis('lidar')
 
-    def post_data(self, manager, rsu, data):
-        manager.post(rsu, data)
+    def handle_ping(self, rsu_id):
+        print(f"Vehicle {self.id_num} received ping from RSU {rsu_id}")
+        if rsu_id not in self.in_range_rsu:
+            if len(self.in_range_rsu) == self.in_range_rsu.maxlen:
+                target = self.in_range_rsu.pop()
+                data = self.get_rsu_data(target)
+                self.post_data(rsu_id, {'sender': self.id_num,
+                                        'type': 'post',
+                                        'data': data})
+            self.in_range_rsu.appendleft(rsu_id)
+            self.post_data(rsu_id, {'sender': self.id_num,
+                                    'type': 'request',
+                                    'data': f'request from {self.id_num}'})
+            
+    def get_rsu_data(self, rsu):
+        # TODO: actually, data in self.data will be labeled by rsu id, 
+        # and there will be some data that is not rsu specific
+        return self.data[rsu]
+
+    def post_data(self, rsu, data):
+        self.manager.post(rsu, data)
 
     def destroy_actors(self):
-        self.lidar_manager.vis.destroy_window()
-        self.lidar_manager.lidar.destroy()
+        self.sensor_manager.destroy_actors()
         self.vehicle.destroy()
 
     def get_vehicle(self):

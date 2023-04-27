@@ -81,7 +81,7 @@ class PoseGraphManager:
         if (self.current_node_idx > 0 and self.current_node_idx % 10 == 0):
             loop_idx, _, yaw_diff_deg = self.loop_detector.detectLoop()
             if loop_idx is not None:
-                print('Loop detected between node {} and {}'.format(self.current_node_idx, loop_idx))
+                print(f'Loop detected between node {self.current_node_idx} and {loop_idx}')
                 pc_loop_downsampled = self.loop_detector.ptclouds[loop_idx]
                 loop_transform = self.icp(pc_downsampled,
                                           pc_loop_downsampled,
@@ -110,7 +110,7 @@ class PoseGraphManager:
 
     @staticmethod
     def eulerAnglesToRotationMatrix(yaw) :
-        
+        # TODO: figure out how yaw became a list at 150
         # assume roll = 0
         R_x = np.array([[1, 0, 0],
                         [0, 1, 0],

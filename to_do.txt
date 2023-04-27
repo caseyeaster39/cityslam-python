@@ -1,5 +1,5 @@
-Evaluate current pose graphs
+Evaluate current pose graphs -> Birds eye view?
 Improve loop detection and loop closure
+data structure
 V2V communication
 V2I communication
-Submapping

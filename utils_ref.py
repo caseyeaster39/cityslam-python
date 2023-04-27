@@ -1,8 +1,6 @@
-import sys
 import argparse
 import time
 import numpy as np
-from datetime import datetime
 from scipy import spatial
 
 # Reference: 2020 Computer Vision Center (CVC) at the Universitat Autonoma de
@@ -70,6 +68,16 @@ def parse_carla_args():
         type=int,
         help='lidar\'s number of scans between lidar keyframes (default: 20)')
     argparser.add_argument(
+        '--ping-every',
+        default=50,
+        type=int,
+        help='number of carla.tick() calls between v2x pings (default: 50)')
+    argparser.add_argument(
+        '--rsu-queue-size',
+        default=2,
+        type=int,
+        help='number of carla.tick() calls between v2x pings (default: 2)')
+    argparser.add_argument(
         '-x',
         default=0.0,
         type=float,
@@ -89,16 +97,16 @@ def parse_carla_args():
 
 
 def vis_loop(world, v2x_manager):
-    lidar_manager = v2x_manager.vehicle_list[0].lidar_manager
+    sensor_manager = v2x_manager.vehicle_list[0].sensor_manager
+    lidar_manager = sensor_manager.lidar_manager
     point_cloud = lidar_manager.pc
     pc_vis = lidar_manager.vis
     
     frame = 0
-    frame_time = datetime.now()
     while True:
         if frame == 2: # Wait until a frame is available to be added
             pc_vis.add_geometry(point_cloud)
-        if frame == 10:
+        if frame % v2x_manager.args.ping_every == 0:
             v2x_manager.ping()
             
         pc_vis.update_geometry(point_cloud)
@@ -107,18 +115,8 @@ def vis_loop(world, v2x_manager):
         
         time.sleep(0.005) # Fix Open3d jittering -> per CVC @ UAB
         world.tick()
-
-        process_time = datetime.now() - frame_time
-        sys.stdout.write('\r' + 'FPS: ' + str(1.0 / process_time.total_seconds()))
-        sys.stdout.flush()
-        frame_time = datetime.now()
         frame += 1
 
-
-############################################################################################################
-# ScanContext for Loop detection
-# Reference: https://github.com/gisbi-kim/PyICP-SLAM/
-############################################################################################################
 
 class ScanContextManager:
     def __init__(self, shape=[20,60], num_candidates=10, threshold=0.15): # defualt configs are same as the original paper 
@@ -282,3 +280,11 @@ def distance_sc(sc1, sc2):
     dist = 1 - sim
 
     return dist, yaw_diff
+
+####################################################################################################
+# References: 
+# Argparser:
+#   2020 Computer Vision Center (CVC) at the Universitat Autonoma de Barcelona (UAB): open3d_lidar.
+# Scan Context:
+#   gisbi-kim: PyICP-SLAM.  https://github.com/gisbi-kim/PyICP-SLAM/
+####################################################################################################
