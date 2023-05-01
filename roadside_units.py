@@ -7,7 +7,9 @@ class RSU:
         self.manager = manager
 
     def listen(self, data_dict: dict):
-        # NOTE: be careful calling post from here, it could cause an infinite loop if its own id is not checked
+        if self.id_num == data_dict['sender']:
+            print(f"RSU {self.id_num} received its own data: {data_dict['data']}")
+            return
         if data_dict['type'] == 'request':
             print(f"RSU {self.id_num} received request: {data_dict['data']} from entity {data_dict['sender']}")
             self.post(data_dict['sender'], data_dict['sender_type'], {'sender': self.id_num,

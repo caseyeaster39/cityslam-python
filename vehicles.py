@@ -22,7 +22,7 @@ class Vehicle:
             self.vehicle.set_autopilot(True)
         else:
             raise NotImplementedError("Behavior not supported")
-        print('created %s' % self.vehicle.type_id) 
+        print(f"created {self.vehicle.type_id} at {ego_init}")
 
     def spawn_sensor(self, sensor_type, vis=False):
         self.brain.add_sensor(self.args, self.vehicle, sensor_type, vis)
@@ -44,6 +44,9 @@ class Vehicle:
                                            'data': f'request from {self.id_num}'})
             
     def listen(self, data_dict: dict):
+        if self.id_num == data_dict['sender']:
+            print(f"Vehicle {self.id_num} received its own data: {data_dict['data']}")
+            return
         if data_dict['type'] == 'request':
             print(f"Vehicle {self.id_num} received request: {data_dict['data']} from entity {data_dict['sender']}")
             self.post_data(data_dict['sender'], data_dict['sender_type'], {'sender': self.id_num,
