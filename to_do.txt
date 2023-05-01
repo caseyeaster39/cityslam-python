@@ -1,5 +1,6 @@
 Evaluate current pose graphs -> Birds eye view?
 Improve loop detection and loop closure
 data structure
-V2V communication
-V2I communication
+Consider agent class (or named whatever), from which vehicles and rsus inherit
+    - Communication and structure overlap
+    - Then vehicles or rsus have their own specific functions

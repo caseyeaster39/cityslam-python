@@ -43,21 +43,21 @@ class Vehicle:
                                            'type': 'request',
                                            'data': f'request from {self.id_num}'})
             
-    def listen(self, data_dict: dict):
-        if self.id_num == data_dict['sender']:
-            print(f"Vehicle {self.id_num} received its own data: {data_dict['data']}")
+    def listen(self, communication_dict: dict):
+        if self.id_num == communication_dict['sender']:
+            print(f"Vehicle {self.id_num} received its own data: {communication_dict['data']}")
             return
-        if data_dict['type'] == 'request':
-            print(f"Vehicle {self.id_num} received request: {data_dict['data']} from entity {data_dict['sender']}")
-            self.post_data(data_dict['sender'], data_dict['sender_type'], {'sender': self.id_num,
+        if communication_dict['type'] == 'request':
+            print(f"Vehicle {self.id_num} received request: {communication_dict['data']} from entity {communication_dict['sender']}")
+            self.post_data(communication_dict['sender'], communication_dict['sender_type'], {'sender': self.id_num,
                                                                            'sender_type': 'vehicle',
                                                                            'type': 'response',
                                                                            'data': f'response from {self.id_num}'})
-        elif data_dict['type'] == 'response':
-            print(f"Vehicle {self.id_num} received response: {data_dict['data']} from entity {data_dict['sender']}")
-            self.brain.remember(data_dict['data'])
+        elif communication_dict['type'] == 'response':
+            print(f"Vehicle {self.id_num} received response: {communication_dict['data']} from entity {communication_dict['sender']}")
+            self.brain.remember(communication_dict['data'])
         else:
-            print(f"Vehicle {self.id_num} received unknown data: {data_dict['data']} from entity {data_dict['sender']}")
+            print(f"Vehicle {self.id_num} received unknown data: {communication_dict['data']} from entity {communication_dict['sender']}")
 
     def post_data(self, recepient, recepient_type, data):
         self.manager.post(recepient, recepient_type, data)
