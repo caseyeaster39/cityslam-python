@@ -30,13 +30,17 @@ class Brain:
         if sensor_type.lower() == 'lidar':
             return self.perception_manager.lidar_manager.pc
         else:
-            raise ValueError(f'Sensor type [{sensor_type}] not supported')
+            raise NotImplementedError(f'Sensor type [{sensor_type}] not supported')
 
     def get_sensor_vis(self, sensor_type):
         if sensor_type.lower() == 'lidar':
             return self.perception_manager.lidar_manager.vis
         else:
-            raise ValueError(f'Visualization for [{sensor_type}] not supported')
+            raise NotImplementedError(f'Visualization for [{sensor_type}] not supported')
+        
+    def get_graph(self):
+        return (self.memory_manager.pose_graph_manager.graph_factors, 
+                self.memory_manager.pose_graph_manager.graph_values)
 
 
 class PerceptionManager:
@@ -49,13 +53,13 @@ class PerceptionManager:
             self.lidar_manager = sensors.LidarManager(args, self.world)
             self.lidar_manager.spawn_lidar(vehicle, memory_manager)   
         else:
-            raise ValueError(f'Sensor type [{sensor_type}] not supported')
+            raise NotImplementedError(f'Sensor type [{sensor_type}] not supported')
 
     def start_vis(self, sensor_type):
         if sensor_type.lower() == 'lidar':
             self.lidar_manager.start_vis()
         else:
-            raise ValueError(f'Visualization for [{sensor_type}] not supported')
+            raise NotImplementedError(f'Visualization for [{sensor_type}] not supported')
 
     def destroy_actors(self):
         self.lidar_manager.destroy_actors()

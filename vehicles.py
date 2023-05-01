@@ -21,14 +21,14 @@ class Vehicle:
         if behavior == 'autopilot':
             self.vehicle.set_autopilot(True)
         else:
-            print('Behavior not supported')
+            raise NotImplementedError("Behavior not supported")
         print('created %s' % self.vehicle.type_id) 
 
     def spawn_sensor(self, sensor_type, vis=False):
         if sensor_type.lower() == 'lidar':
             self.brain.add_sensor(self.args, self.vehicle, sensor_type, vis)
         else:
-            print('Sensor type not supported')
+            raise NotImplementedError(f'Sensor type [{sensor_type}] not supported')
 
     def handle_ping(self, rsu_id):
         print(f"Vehicle {self.id_num} received ping from RSU {rsu_id}")
@@ -36,30 +36,31 @@ class Vehicle:
             if len(self.in_range_rsu) == self.in_range_rsu.maxlen:
                 target = self.in_range_rsu.pop()
                 data = self.get_rsu_data(target)
-                self.post_data(rsu_id, {'sender': self.id_num,
-                                        'type': 'post',
-                                        'data': data})
+                self.post_data(rsu_id, 'rsu', {'sender': self.id_num,
+                                               'sender_type': 'vehicle',
+                                               'type': 'post',
+                                               'data': data})
             self.in_range_rsu.appendleft(rsu_id)
-            self.post_data(rsu_id, {'sender': self.id_num,
-                                    'type': 'request',
-                                    'data': f'request from {self.id_num}'})
+            self.post_data(rsu_id, 'rsu', {'sender': self.id_num,
+                                           'sender_type': 'vehicle',
+                                           'type': 'request',
+                                           'data': f'request from {self.id_num}'})
             
-    def listen(self, data_dict: dict): # TODO: Clean up this function
+    def listen(self, data_dict: dict):
         if data_dict['type'] == 'request':
             print(f"Vehicle {self.id_num} received request: {data_dict['data']} from entity {data_dict['sender']}")
-            self.post_data(data_dict['sender'], {'sender': self.id_num,
-                                                'type': 'response',
-                                                'data': f'response from {self.id_num}'})
+            self.post_data(data_dict['sender'], data_dict['sender_type'], {'sender': self.id_num,
+                                                                           'sender_type': 'vehicle',
+                                                                           'type': 'response',
+                                                                           'data': f'response from {self.id_num}'})
         elif data_dict['type'] == 'response':
             print(f"Vehicle {self.id_num} received response: {data_dict['data']} from entity {data_dict['sender']}")
-        elif data_dict['type'] == 'post':
-            print(f"Vehicle {self.id_num} received post: {data_dict['data']} from entity {data_dict['sender']}")
-            self.remember(data_dict['data'])
+            self.brain.remember(data_dict['data'])
         else:
             print(f"Vehicle {self.id_num} received unknown data: {data_dict['data']} from entity {data_dict['sender']}")
 
-    def post_data(self, rsu, data):
-        self.manager.post('vehicle', rsu, data)
+    def post_data(self, recepient, recepient_type, data):
+        self.manager.post(recepient, recepient_type, data)
 
     def destroy_actors(self):
         self.brain.forget('all')

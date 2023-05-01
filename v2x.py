@@ -33,16 +33,16 @@ class V2X_Manager:
                 return vehicle
         return None
     
-    def post(self, from_entity, id_num, data):
-        if from_entity == 'rsu': # TODO: this check should look for target entity type, since there is I2I and V2V communication
-            to_entity = self.get_vehicle(id_num)
-        elif from_entity == 'vehicle':
-            to_entity = self.get_rsu(id_num)
+    def post(self, recepient, recepient_type, data):
+        if recepient_type == 'rsu':
+            to_entity = self.get_rsu(recepient)
+        elif recepient_type == 'vehicle':
+            to_entity = self.get_vehicle(recepient)
         else:
-            raise ValueError(f"{from_entity} is not a valid entity type")
+            raise ValueError(f"{recepient_type} is not a valid entity type")
         
         if to_entity is None:
-            raise ValueError(f"{to_entity} with id_num {id_num} does not exist")
+            raise ValueError(f"{to_entity} with id_num {recepient} does not exist")
         to_entity.listen(data)
 
     def ping(self):

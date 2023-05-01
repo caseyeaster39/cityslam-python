@@ -1,6 +1,3 @@
-# References:   2020 Computer Vision Center (CVC) at the Universitat Autonoma de
-#               Barcelona (UAB) -> open3d_lidar.py
-
 # ==============================================================================
 # -- find carla module ---------------------------------------------------------
 # ==============================================================================
@@ -81,7 +78,7 @@ def vis_loop(world, v2x_manager):
         frame += 1
 
 
-def main(args):
+def main(args, pose_vis=False):
     try:
         ### CARLA Setup ###
         client = carla.Client(args.host, args.port)
@@ -113,8 +110,7 @@ def main(args):
         vis_loop(world, v2x_manager)
 
     except KeyboardInterrupt:
-        # gf = vehicle_manager.lidar_manager.pose_graph_manager.graph_factors
-        # gv = vehicle_manager.lidar_manager.pose_graph_manager.graph_values
+        graph = vehicle_manager.brain.get_graph()
         print('\ndestroying actors')
         world.apply_settings(original_settings)
         traffic_manager.set_synchronous_mode(False)
@@ -122,18 +118,10 @@ def main(args):
         vehicle_manager.destroy_actors()
         print('done.')
 
-    except RuntimeError as error:
-        print(error)
-        print('\ndestroying actors')
-        world.apply_settings(original_settings)
-        traffic_manager.set_synchronous_mode(False)
-
-        vehicle_manager.destroy_actors()
-        print('done.')
-
-    # plt.ion()
-    # visualize_pose_graph((gf, gv), 'Pose Graph')
+    if pose_vis:
+        plt.ion()
+        visualize_pose_graph(graph, 'Pose Graph')
 
 if __name__ == '__main__':
     args = utils_ref.parse_carla_args()
-    main(args)
+    main(args, pose_vis=False)
