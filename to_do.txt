@@ -1,6 +1,17 @@
-Evaluate current pose graphs -> Birds eye view?
 Improve loop detection and loop closure
 data structure
+    - Just pose graph and loop detector graph
+Single Vehicle, Single RSU
+    - Implement VCS-style merging (timestamps)
+Single Vehicle, Multiple RSU
+    - Implement distributed optimization
+Multiple Vehicles, Multiple RSU
+    - Full-sclae merging, distributed optimization, etc.
 Consider agent class (or named whatever), from which vehicles and rsus inherit
     - Communication and structure overlap
     - Then vehicles or rsus have their own specific functions
+
+
+Future Work
+    - Local-window HD maps
+    - Smart traffic management, incident detection and handling

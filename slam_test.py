@@ -35,7 +35,7 @@ def visualize_pose_graph(graph, fig_name=None):
     fig = plt.figure()
     if fig_name is not None:
         fig.canvas.manager.set_window_title(fig_name)
-    ax = fig.add_subplot(111, projection='3d')
+    ax = fig.add_subplot(111)
     drawn = {}
 
     for idx in range(graph_factors.size()):
@@ -45,8 +45,8 @@ def visualize_pose_graph(graph, fig_name=None):
                 position = graph_values.atPose3(key).translation()
                 # orientation = graph_values.atPose3(key).matrix()
                 label = f"{chr(gtsam.symbolChr(key))}{gtsam.symbolIndex(key)}"
-                ax.scatter(position[0], position[1], position[2], marker='o')
-                ax.text(position[0], position[1], position[2], label)
+                ax.scatter(position[0], position[1], marker='o')
+                ax.text(position[0], position[1], label)
                 drawn[key] = position
         if isinstance(factor, gtsam.BetweenFactorPose3):
             [key1, key2] = factor.keys()
@@ -124,4 +124,4 @@ def main(args, pose_vis=False):
 
 if __name__ == '__main__':
     args = utils_ref.parse_carla_args()
-    main(args, pose_vis=False)
+    main(args)

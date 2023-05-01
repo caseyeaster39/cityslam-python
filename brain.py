@@ -6,7 +6,6 @@ class Brain:
         self.world = world
         self.args = args
 
-        # TODO: store data in a data manager
         self.memory_manager = MemoryManager()
         self.perception_manager = PerceptionManager(self.world) if perceive else None
 
@@ -26,7 +25,6 @@ class Brain:
             raise ValueError("Perception is not enabled")
         if sensor_type.lower() != 'lidar':
             raise NotImplementedError(f'Sensor type [{sensor_type}] not supported')
-
 
     def add_sensor(self, args, vehicle, sensor_type, vis=False):
         self.check_sensor(sensor_type)

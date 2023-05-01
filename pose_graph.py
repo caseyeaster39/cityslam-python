@@ -4,6 +4,11 @@ import gtsam
 import numpy as np
 import open3d as o3d
 
+# TODO: Distributed pose graph optimization
+# TODO: Importing pose graphs
+# TODO: Merging pose graphs
+# TODO: Vehicle vs. RSU pose graphs
+
 
 class PoseGraphManager:
     def __init__(self) -> None:
@@ -110,7 +115,7 @@ class PoseGraphManager:
 
     @staticmethod
     def eulerAnglesToRotationMatrix(yaw) :
-        # TODO: figure out how yaw became a list at 150
+        
         # assume roll = 0
         R_x = np.array([[1, 0, 0],
                         [0, 1, 0],
