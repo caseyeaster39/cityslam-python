@@ -24,6 +24,7 @@ except IndexError:
 
 import carla
 import gtsam
+import time
 import matplotlib.pyplot as plt
 
 import utils_ref, v2x
@@ -58,6 +59,28 @@ def visualize_pose_graph(graph, fig_name=None):
     input()
 
 
+def vis_loop(world, v2x_manager):
+    vehicle = v2x_manager.vehicle_list[0]
+
+    point_cloud = vehicle.brain.get_sensor_data('Lidar')
+    pc_vis = vehicle.brain.get_sensor_vis('Lidar')
+    
+    frame = 0
+    while True:
+        if frame == 2: # Wait until a frame is available to be added
+            pc_vis.add_geometry(point_cloud)
+        if frame % v2x_manager.args.ping_every == 0:
+            v2x_manager.ping()
+            
+        pc_vis.update_geometry(point_cloud)
+        pc_vis.poll_events()
+        pc_vis.update_renderer()
+        
+        time.sleep(0.005) 
+        world.tick()
+        frame += 1
+
+
 def main(args):
     try:
         ### CARLA Setup ###
@@ -87,7 +110,7 @@ def main(args):
         v2x_manager.add_rsu(carla.Location(x=-44.4, y=18.8, z=2.5), 44, [])
         
         ### Main Loop ###
-        utils_ref.vis_loop(world, v2x_manager)
+        vis_loop(world, v2x_manager)
 
     except KeyboardInterrupt:
         # gf = vehicle_manager.lidar_manager.pose_graph_manager.graph_factors

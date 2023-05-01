@@ -18,10 +18,8 @@ class V2X_Manager:
         vehicle.spawn_vehicle(vehicle_type, behavior, spawn_location)
         if len(sensors) > 0:
             for sensor in sensors:
-                vehicle.spawn_sensor(sensor_type=sensor)
+                vehicle.spawn_sensor(sensor_type=sensor, vis=vis)
         self.vehicle_list.append(vehicle)
-        if vis:
-            vehicle.start_vis()
 
     def get_rsu(self, id_num):
         for rsu in self.rsu_list:
@@ -29,11 +27,23 @@ class V2X_Manager:
                 return rsu
         return None
     
-    def post(self, id_num, data):
-        rsu = self.get_rsu(id_num)
-        if rsu is None:
-            raise ValueError(f"RSU with id_num {id_num} does not exist")
-        rsu.listen(data)
+    def get_vehicle(self, id_num):
+        for vehicle in self.vehicle_list:
+            if vehicle.id_num == id_num:
+                return vehicle
+        return None
+    
+    def post(self, from_entity, id_num, data):
+        if from_entity == 'rsu': # TODO: this check should look for target entity type, since there is I2I and V2V communication
+            to_entity = self.get_vehicle(id_num)
+        elif from_entity == 'vehicle':
+            to_entity = self.get_rsu(id_num)
+        else:
+            raise ValueError(f"{from_entity} is not a valid entity type")
+        
+        if to_entity is None:
+            raise ValueError(f"{to_entity} with id_num {id_num} does not exist")
+        to_entity.listen(data)
 
     def ping(self):
         for rsu in self.rsu_list:

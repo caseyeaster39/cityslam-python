@@ -1,5 +1,4 @@
 import argparse
-import time
 import numpy as np
 from scipy import spatial
 
@@ -94,28 +93,6 @@ def parse_carla_args():
         help='offset in the sensor position in the Z-axis in meters (default: 0.0)')
     args = argparser.parse_args()
     return args
-
-
-def vis_loop(world, v2x_manager):
-    sensor_manager = v2x_manager.vehicle_list[0].sensor_manager
-    lidar_manager = sensor_manager.lidar_manager
-    point_cloud = lidar_manager.pc
-    pc_vis = lidar_manager.vis
-    
-    frame = 0
-    while True:
-        if frame == 2: # Wait until a frame is available to be added
-            pc_vis.add_geometry(point_cloud)
-        if frame % v2x_manager.args.ping_every == 0:
-            v2x_manager.ping()
-            
-        pc_vis.update_geometry(point_cloud)
-        pc_vis.poll_events()
-        pc_vis.update_renderer()
-        
-        time.sleep(0.005) # Fix Open3d jittering -> per CVC @ UAB
-        world.tick()
-        frame += 1
 
 
 class ScanContextManager:

@@ -24,26 +24,6 @@ import open3d as o3d
 import numpy as np
 from matplotlib import cm
 
-import utils_ref, pose_graph
-
-
-class SensorManager:
-    def __init__(self, world) -> None:
-        self.world = world
-
-    def spawn_lidar(self, args, vehicle):
-        self.lidar_manager = LidarManager(args, self.world)
-        self.lidar_manager.spawn_lidar(vehicle)   
-
-    def start_vis(self, sensor_type):
-        if sensor_type.lower() == 'lidar':
-            self.lidar_manager.start_vis()
-        else:
-            print('Sensor type not supported')
-
-    def destroy_actors(self):
-        self.lidar_manager.destroy_actors()
-
 
 class LidarManager:
     def __init__(self, args, world) -> None:
@@ -63,11 +43,7 @@ class LidarManager:
         ### SLAM Setup ###
         self.frame_counter = 1
         self.keyframe_interval = args.keyframe_interval
-
-        # TODO: Move to vehicle manager (and to rsus?)
-        self.pose_graph_manager = pose_graph.PoseGraphManager()
-        self.pose_graph_manager.add_prior()
-        self.pose_graph_manager.set_loop_detector(utils_ref.ScanContextManager())
+        self.memory_manager = None
 
     def bp_init(self, args):
         bp_lib = self.world.get_blueprint_library()
@@ -86,7 +62,8 @@ class LidarManager:
         bp.set_attribute('points_per_second', str(args.points_per_second))
         return bp
     
-    def spawn_lidar(self, vehicle):
+    def spawn_lidar(self, vehicle, memory_manager):
+        self.memory_manager = memory_manager
         self.lidar = self.world.spawn_actor(self.lidar_bp, 
                                             self.lidar_transform, 
                                             attach_to=vehicle)
@@ -98,8 +75,8 @@ class LidarManager:
         self.pc.points = o3d.utility.Vector3dVector(coords)
         self.pc.colors = o3d.utility.Vector3dVector(int_color)
 
-        if not self.frame_counter % self.keyframe_interval: # Every [interval] frames
-            self.pose_graph_manager.update(self.pc)
+        if self.frame_counter % self.keyframe_interval == 0: # Every [interval] frames
+            self.memory_manager.keyframe(self.pc)
         self.frame_counter += 1
 
     def format_for_vis(self, point_cloud):
@@ -139,6 +116,6 @@ class LidarManager:
 
 ####################################################################################################
 # References: 
-# LidarManager:
+# LidarManager adapted from:
 #   2020 Computer Vision Center (CVC) at the Universitat Autonoma de Barcelona (UAB): open3d_lidar.
 ####################################################################################################
