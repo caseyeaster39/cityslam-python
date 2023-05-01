@@ -6,7 +6,7 @@ class Vehicle:
     def __init__(self, id_num, world, args, manager) -> None:
         self.world = world
         self.args = args
-        self.brain = Brain(self.world, self.args)
+        self.brain = Brain(self.world, self.args, perceive=True)
         
         self.vehicle = None  
         self.id_num = id_num
@@ -25,10 +25,7 @@ class Vehicle:
         print('created %s' % self.vehicle.type_id) 
 
     def spawn_sensor(self, sensor_type, vis=False):
-        if sensor_type.lower() == 'lidar':
-            self.brain.add_sensor(self.args, self.vehicle, sensor_type, vis)
-        else:
-            raise NotImplementedError(f'Sensor type [{sensor_type}] not supported')
+        self.brain.add_sensor(self.args, self.vehicle, sensor_type, vis)
 
     def handle_ping(self, rsu_id):
         print(f"Vehicle {self.id_num} received ping from RSU {rsu_id}")

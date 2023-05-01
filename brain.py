@@ -2,13 +2,13 @@ import sensors, pose_graph, utils_ref
 
 
 class Brain:
-    def __init__(self, world, args) -> None:
+    def __init__(self, world, args, perceive=False) -> None:
         self.world = world
         self.args = args
 
         # TODO: store data in a data manager
         self.memory_manager = MemoryManager()
-        self.perception_manager = PerceptionManager(self.world)
+        self.perception_manager = PerceptionManager(self.world) if perceive else None
 
     def remember(self, data):
         self.memory_manager.data = data
@@ -21,22 +21,26 @@ class Brain:
             self.perception_manager.destroy_actors()
         self.memory_manager.data = {}
 
+    def check_sensor(self, sensor_type):
+        if self.perception_manager is None:
+            raise ValueError("Perception is not enabled")
+        if sensor_type.lower() != 'lidar':
+            raise NotImplementedError(f'Sensor type [{sensor_type}] not supported')
+
+
     def add_sensor(self, args, vehicle, sensor_type, vis=False):
+        self.check_sensor(sensor_type)
         self.perception_manager.spawn_sensor(args, vehicle, sensor_type, self.memory_manager)
         if vis:
             self.perception_manager.start_vis(sensor_type)
 
     def get_sensor_data(self, sensor_type):
-        if sensor_type.lower() == 'lidar':
-            return self.perception_manager.lidar_manager.pc
-        else:
-            raise NotImplementedError(f'Sensor type [{sensor_type}] not supported')
+        self.check_sensor(sensor_type)
+        return self.perception_manager.lidar_manager.pc
 
     def get_sensor_vis(self, sensor_type):
-        if sensor_type.lower() == 'lidar':
-            return self.perception_manager.lidar_manager.vis
-        else:
-            raise NotImplementedError(f'Visualization for [{sensor_type}] not supported')
+        self.check_sensor(sensor_type)
+        return self.perception_manager.lidar_manager.vis
         
     def get_graph(self):
         return (self.memory_manager.pose_graph_manager.graph_factors, 
