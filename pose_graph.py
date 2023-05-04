@@ -68,7 +68,7 @@ class PoseGraphManager:
         self.current_pose[:3, :3] = pose.rotation().matrix()                   # Rotation
 
     def update(self, point_cloud):
-        print(f"\nCurrent node: {self.current_node_idx}")
+        print(f"Current node: {self.current_node_idx}")
         if self.current_node_idx == 1:
             self.previous_pc = copy.deepcopy(point_cloud)
         pc_downsampled = point_cloud.uniform_down_sample(every_k_points=10)
@@ -77,26 +77,28 @@ class PoseGraphManager:
         self.loop_detector.addNode(node_idx=self.current_node_idx-1,
                                    ptcloud=pc_downsampled)
 
+        # TODO: Improve odometry (EKF?)
         odom_transform = self.icp(pc_downsampled, pc_previous_downsampled)
 
         self.current_pose = np.matmul(self.current_pose, odom_transform)
         self.add_odometry(odom_transform)
         self.icp_init = odom_transform
 
-        if (self.current_node_idx > 0 and self.current_node_idx % 10 == 0):
-            loop_idx, _, yaw_diff_deg = self.loop_detector.detectLoop()
-            if loop_idx is not None:
-                print(f'Loop detected between node {self.current_node_idx} and {loop_idx}')
-                pc_loop_downsampled = self.loop_detector.ptclouds[loop_idx]
-                loop_transform = self.icp(pc_downsampled,
-                                          pc_loop_downsampled,
-                                          init_pose=self.yawdeg2se3(yaw_diff_deg))
-                self.add_loop(loop_transform, loop_idx)
-                self.optimize()
-
         self.previous_pc = copy.deepcopy(point_cloud)
         self.previous_node_idx = self.current_node_idx
         self.current_node_idx += 1
+
+    # TODO: Change for RSU loop detection
+    def detect_loops(self, pc_downsampled):
+        loop_idx, _, yaw_diff_deg = self.loop_detector.detectLoop()
+        if loop_idx is not None:
+            print(f'Loop detected between node {self.current_node_idx} and {loop_idx}')
+            pc_loop_downsampled = self.loop_detector.ptclouds[loop_idx]
+            loop_transform = self.icp(pc_downsampled,
+                                        pc_loop_downsampled,
+                                        init_pose=self.yawdeg2se3(yaw_diff_deg))
+            self.add_loop(loop_transform, loop_idx+1)
+            self.optimize()
 
     def icp(self, pc_downsampled, pc_previous_downsampled, init_pose=None):
         reg_p2p = o3d.pipelines.registration.registration_icp(source = pc_downsampled, 

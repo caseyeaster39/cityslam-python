@@ -1,5 +1,5 @@
 import uuid 
-import roadside_units, vehicles
+import entities
 
 class V2X_Manager:
     def __init__(self, world, args) -> None:
@@ -10,11 +10,11 @@ class V2X_Manager:
         self.vehicle_list = []
 
     def add_rsu(self, spawn_location, communication_range, neighbors: list):
-        rsu = roadside_units.RSU(uuid.uuid4(), spawn_location, communication_range, neighbors, self)
+        rsu = entities.RSU(uuid.uuid4(), spawn_location, communication_range, neighbors, self)
         self.rsu_list.append(rsu)
 
     def add_vehicle(self, vehicle_type, behavior, spawn_location=None, sensors = [], vis=False):
-        vehicle = vehicles.Vehicle(uuid.uuid4(), self.world, self.args, self)
+        vehicle = entities.Vehicle(uuid.uuid4(), self.world, self.args, self)
         vehicle.spawn_vehicle(vehicle_type, behavior, spawn_location)
         if len(sensors) > 0:
             for sensor in sensors:
@@ -47,8 +47,7 @@ class V2X_Manager:
 
     def ping(self):
         for rsu in self.rsu_list:
-            for vehicle in self.vehicle_list:
-                if rsu.ping_vehicle(vehicle):
-                    vehicle.handle_ping(rsu.id_num)
+            rsu.ping_vehicle_list(self.vehicle_list)
+                    
     
     

@@ -2,18 +2,19 @@ import sensors, pose_graph, utils_ref
 
 
 class Brain:
-    def __init__(self, world, args, perceive=False) -> None:
-        self.world = world
-        self.args = args
-
+    def __init__(self, world=None, perceive=False) -> None:
         self.memory_manager = MemoryManager()
-        self.perception_manager = PerceptionManager(self.world) if perceive else None
+        if perceive:
+            if world is None:
+                raise ValueError("Perception requires a world")
+            self.perception_manager = PerceptionManager(world)
 
     def remember(self, data):
         self.memory_manager.data = data
 
-    def recall(self):
-        return self.memory_manager.data
+    def recall(self, target_id):
+        # TODO: Implement recall once data structure is finalized
+        return self.memory_manager.data[f'{target_id}']
 
     def forget(self, what):
         if what == 'all':
@@ -72,9 +73,13 @@ class MemoryManager:
         self.pose_graph_manager = pose_graph.PoseGraphManager()
         self.pose_graph_manager.add_prior()
         self.pose_graph_manager.set_loop_detector(utils_ref.ScanContextManager())
+
+        self.label_graph = {}
+
         self.data = {}
 
     def keyframe(self, data):
         self.pose_graph_manager.update(data)
+        # Data snapshot, label, etc
 
     
