@@ -1,3 +1,4 @@
+import time
 import sensors, pose_graph, utils_ref
 
 
@@ -10,11 +11,10 @@ class Brain:
             self.perception_manager = PerceptionManager(world)
 
     def remember(self, data):
-        self.memory_manager.data = data
+        self.memory_manager.data[f'{time.time()}'] = data
 
-    def recall(self, target_id):
-        # TODO: Implement recall once data structure is finalized
-        return self.memory_manager.data[f'{target_id}']
+    def recall(self, what):
+        return self.memory_manager.get_recollection(what)
 
     def forget(self, what):
         if what == 'all':
@@ -81,5 +81,13 @@ class MemoryManager:
     def keyframe(self, data):
         self.pose_graph_manager.update(data)
         # Data snapshot, label, etc
+
+    def get_recollection(self, what):
+        if what == 'all':
+            return self.data
+        elif what == 'graph':
+            return self.pose_graph_manager.graph_factors
+        else:
+            raise NotImplementedError(f'Recollection of [{what}] not supported')
 
     

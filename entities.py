@@ -9,31 +9,37 @@ class Entity:
         
     def listen(self, communication_dict):
         # Protect against self-communication
-        if self.id_num == communication_dict['sender']:
-            print(f"{self.__class__.__name__} {self.id_num} received its own data: {communication_dict['data']}")
+        sender_type, sender_id = communication_dict['sender'].split()
+        if self.id_num == sender_id:
+            print(f"{self} received its own data: {communication_dict['data']}")
             return
         
         # Communication logic
         if communication_dict['type'] == 'request':
-            print(f"{self.__class__.__name__} {self.id_num} received request from entity {communication_dict['sender']}")
-            self.post_data(communication_dict['sender'], communication_dict['sender_type'], {'sender': self.id_num,
-                                                                                             'sender_type': self.__class__.__name__.lower(),
-                                                                                             'type': 'response',
-                                                                                             'data': f'response'})
+            self.get_response(sender_id, sender_type)
         elif communication_dict['type'] == 'response':
-            print(f"{self.__class__.__name__} {self.id_num} received response: {communication_dict['data']} from entity {communication_dict['sender']}")
+            print(f"{self} received response: {communication_dict['data']} from {communication_dict['sender']}")
             self.brain.remember(communication_dict['data'])
         elif communication_dict['type'] == 'post':
-            print(f"{self.__class__.__name__} {self.id_num} received post: {communication_dict['data']} from entity {communication_dict['sender']}")
+            print(f"{self} received post: {communication_dict['data']} from {communication_dict['sender']}")
             self.brain.remember(communication_dict['data'])
         else:
-            print(f"{self.__class__.__name__} {self.id_num} received unknown data: {communication_dict['data']} from entity {communication_dict['sender']}")
+            print(f"{self} received unknown data: {communication_dict['data']} from {communication_dict['sender']}")
 
-    def post_data(self, recepient, recepient_type, data):
-        self.manager.post(recepient, recepient_type, data)
+    def send_msg(self, recipient, recipient_type, msg_type, data):
+        package = {'sender': f"{self}",
+                    'type': msg_type,
+                    'data': data}                   
+        self.manager.post(recipient, recipient_type, package)   
 
-    def __str__(self):
-        return f"{self.__class__.__name__} {self.id_num} at {self.location} with neighbors {self.neighbors}"
+    def get_response(self, requester_id, requester_type):
+        print(f"{self} received request from {requester_type} {requester_id}")
+        data = self.brain.recall('all')
+        self.send_msg(requester_id, requester_type.lower(),
+                      'response', data)
+    
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__} {self.id_num}"
 
 
 class RSU(Entity):
@@ -56,10 +62,8 @@ class RSU(Entity):
             vehicle.handle_ping(self.id_num)
             if vehicle.id_num not in self.vehicles_in_range:
                 self.vehicles_in_range.append(vehicle.id_num)
-                self.post_data(vehicle.id_num, 'vehicle', {'sender': self.id_num, 
-                                                           'sender_type': 'rsu', 
-                                                           'type': 'request', 
-                                                           'data': 'request'})
+                self.send_msg(vehicle.id_num, 'vehicle', 
+                               'request', 'request')
             return True
         return False
         
@@ -71,7 +75,7 @@ class RSU(Entity):
 
         for vehicle_id in self.vehicles_in_range:
             if vehicle_id not in vehicles_pinged:
-                print(f"RSU {self.id_num} lost vehicle {vehicle_id}")
+                print(f"{self} lost vehicle {vehicle_id}")
                 self.vehicles_in_range.remove(vehicle_id)
                 
 
@@ -95,26 +99,22 @@ class Vehicle(Entity):
             self.vehicle.set_autopilot(True)
         else:
             raise NotImplementedError("Behavior not supported")
-        print(f"created {self.vehicle.type_id} at {ego_init}")
+        print(f"created {self.vehicle.type_id} at {ego_init.location}")
 
     def spawn_sensor(self, sensor_type, vis=False):
         self.brain.add_sensor(self.args, self.vehicle, sensor_type, vis)
 
     def handle_ping(self, rsu_id):
-        print(f"Vehicle {self.id_num} received ping from RSU {rsu_id}")
+        print(f"{self} received ping from RSU {rsu_id}")
         if rsu_id not in self.in_range_rsu:
             if len(self.in_range_rsu) == self.in_range_rsu.maxlen:
                 target = self.in_range_rsu.pop()
                 data = self.brain.recall(target)
-                self.post_data(rsu_id, 'rsu', {'sender': self.id_num,
-                                               'sender_type': 'vehicle',
-                                               'type': 'post',
-                                               'data': data})
+                self.send_msg(rsu_id, 'rsu', 
+                               'post', data)
             self.in_range_rsu.appendleft(rsu_id)
-            self.post_data(rsu_id, 'rsu', {'sender': self.id_num,
-                                           'sender_type': 'vehicle',
-                                           'type': 'request',
-                                           'data': f'request'})
+            self.send_msg(rsu_id, 'rsu', 
+                          'request', 'request')
 
     def destroy_actors(self):
         self.brain.forget('all')

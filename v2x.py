@@ -21,29 +21,21 @@ class V2X_Manager:
                 vehicle.spawn_sensor(sensor_type=sensor, vis=vis)
         self.vehicle_list.append(vehicle)
 
-    def get_rsu(self, id_num):
-        for rsu in self.rsu_list:
-            if rsu.id_num == id_num:
-                return rsu
-        return None
-    
-    def get_vehicle(self, id_num):
-        for vehicle in self.vehicle_list:
-            if vehicle.id_num == id_num:
-                return vehicle
-        return None
+    def get_entity(self, id_num, entity_type):
+        if entity_type == 'rsu':
+            entity_list = self.rsu_list 
+        elif entity_type == 'vehicle':
+            entity_list = self.vehicle_list
+        else:
+            raise ValueError(f"{entity_type} is not a valid entity type")
+        
+        for entity in entity_list:
+            if str(entity.id_num) == str(id_num):
+                return entity
+        raise ValueError(f"{entity_type} with id_num {id_num} does not exist")
     
     def post(self, recepient, recepient_type, data):
-        if recepient_type == 'rsu':
-            to_entity = self.get_rsu(recepient)
-        elif recepient_type == 'vehicle':
-            to_entity = self.get_vehicle(recepient)
-        else:
-            raise ValueError(f"{recepient_type} is not a valid entity type")
-        
-        if to_entity is None:
-            raise ValueError(f"{to_entity} with id_num {recepient} does not exist")
-        to_entity.listen(data)
+        self.get_entity(recepient, recepient_type).listen(data)
 
     def ping(self):
         for rsu in self.rsu_list:
