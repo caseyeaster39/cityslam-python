@@ -22,9 +22,102 @@ except IndexError:
 import carla
 import gtsam
 import time
+import argparse
 import matplotlib.pyplot as plt
 
-import utils_ref, v2x
+import v2x
+
+# Reference: 2020 Computer Vision Center (CVC) at the Universitat Autonoma de
+# Barcelona (UAB): open3d_lidar.
+def parse_carla_args():
+    argparser = argparse.ArgumentParser(
+        description="CARLA VSLAM Test")
+    argparser.add_argument(
+        '-d', '--debug',
+        action='store_true',
+        help='Print debug information')
+    argparser.add_argument(
+        '--host',
+        metavar='H',
+        default='localhost',
+        help='IP of the host CARLA Simulator (default: localhost)')
+    argparser.add_argument(
+        '-p', '--port',
+        metavar='P',
+        default=2000,
+        type=int,
+        help='TCP port of CARLA Simulator (default: 2000)')
+    argparser.add_argument(
+        '--delta',
+        default=0.05,
+        type=float,
+        help='delta time between frames in seconds (default: 0.05)')
+    argparser.add_argument(
+        '--no-noise',
+        action='store_true',
+        help='remove the drop off and noise from the lidar')
+    argparser.add_argument(
+        '--filter',
+        metavar='PATTERN',
+        default='model3',
+        help='actor filter (default: "vehicle.*")')
+    argparser.add_argument(
+        '--upper-fov',
+        default=15.0,
+        type=float,
+        help='lidar\'s upper field of view in degrees (default: 15.0)')
+    argparser.add_argument(
+        '--lower-fov',
+        default=-25.0,
+        type=float,
+        help='lidar\'s lower field of view in degrees (default: -25.0)')
+    argparser.add_argument(
+        '--channels',
+        default=64.0,
+        type=float,
+        help='lidar\'s channel count (default: 64)')
+    argparser.add_argument(
+        '--range',
+        default=100.0,
+        type=float,
+        help='lidar\'s maximum range in meters (default: 100.0)')
+    argparser.add_argument(
+        '--points-per-second',
+        default=500000,
+        type=int,
+        help='lidar\'s points per second (default: 500000)')
+    argparser.add_argument(
+        '--keyframe-interval',
+        default=20,
+        type=int,
+        help='lidar\'s number of scans between lidar keyframes (default: 20)')
+    argparser.add_argument(
+        '--ping-every',
+        default=50,
+        type=int,
+        help='number of carla.tick() calls between v2x pings (default: 50)')
+    argparser.add_argument(
+        '--rsu-queue-size',
+        default=2,
+        type=int,
+        help='number of carla.tick() calls between v2x pings (default: 2)')
+    argparser.add_argument(
+        '-x',
+        default=0.0,
+        type=float,
+        help='offset in the sensor position in the X-axis in meters (default: 0.0)')
+    argparser.add_argument(
+        '-y',
+        default=0.0,
+        type=float,
+        help='offset in the sensor position in the Y-axis in meters (default: 0.0)')
+    argparser.add_argument(
+        '-z',
+        default=0.0,
+        type=float,
+        help='offset in the sensor position in the Z-axis in meters (default: 0.0)')
+    args = argparser.parse_args()
+    return args
 
 
 def visualize_pose_graph(graph, fig_name=None):
@@ -78,7 +171,7 @@ def vis_loop(world, v2x_manager):
         frame += 1
 
 
-def main(args, pose_vis=False):
+def main(args, pose_vis=True):
     try:
         ### CARLA Setup ###
         client = carla.Client(args.host, args.port)
@@ -88,8 +181,8 @@ def main(args, pose_vis=False):
         v2x_manager = v2x.V2X_Manager(world, args)
 
         ### Vehicle Setup ###
-        spawn_location = carla.Transform(carla.Location(x=0, y=16.7, z=0.5), 
-                                         carla.Rotation(yaw=180))
+        spawn_location = carla.Transform(carla.Location(x=-103.6, y=85.8, z=0.25), 
+                                         carla.Rotation(yaw=270))
         v2x_manager.add_vehicle(args.filter, 'autopilot', spawn_location=spawn_location, sensors=['Lidar'], vis=True)
         vehicle_manager = v2x_manager.vehicle_list[0]
 
@@ -110,7 +203,7 @@ def main(args, pose_vis=False):
         vis_loop(world, v2x_manager)
 
     except KeyboardInterrupt:
-        graph = vehicle_manager.brain.get_graph()
+        graph = v2x_manager.rsu_list[0].brain.get_graph()
         print('\ndestroying actors')
         world.apply_settings(original_settings)
         traffic_manager.set_synchronous_mode(False)
@@ -123,5 +216,5 @@ def main(args, pose_vis=False):
         visualize_pose_graph(graph, 'Pose Graph')
 
 if __name__ == '__main__':
-    args = utils_ref.parse_carla_args()
+    args = parse_carla_args()
     main(args)

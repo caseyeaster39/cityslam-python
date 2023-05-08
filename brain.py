@@ -1,5 +1,5 @@
 import time
-import sensors, pose_graph, utils_ref
+import sensors, pose_graph
 
 
 class Brain:
@@ -11,10 +11,10 @@ class Brain:
             self.perception_manager = PerceptionManager(world)
 
     def remember(self, data):
-        self.memory_manager.data[f'{time.time()}'] = data
+        self.memory_manager.memories[f'{time.time()}'] = data
 
-    def recall(self, what):
-        return self.memory_manager.get_recollection(what)
+    def recall(self, what, query=None):
+        return self.memory_manager.get_recollection(what, query)
 
     def forget(self, what):
         if what == 'all':
@@ -44,6 +44,12 @@ class Brain:
     def get_graph(self):
         return (self.memory_manager.pose_graph_manager.graph_factors, 
                 self.memory_manager.pose_graph_manager.graph_values)
+    
+    def load_graph(self, graph):
+        self.memory_manager.pose_graph_manager.graph_factors = graph[0]
+        self.memory_manager.pose_graph_manager.graph_values = graph[1]
+        self.memory_manager.pose_graph_manager.loop_detector = graph[2]
+        self.memory_manager.pose_graph_manager.detect_all_loops()
 
 
 class PerceptionManager:
@@ -72,22 +78,50 @@ class MemoryManager:
     def __init__(self) -> None:
         self.pose_graph_manager = pose_graph.PoseGraphManager()
         self.pose_graph_manager.add_prior()
-        self.pose_graph_manager.set_loop_detector(utils_ref.ScanContextManager())
+        self.pose_graph_manager.set_loop_detector(pose_graph.ScanContextManager())
 
         self.label_graph = {}
 
-        self.data = {}
+        self.memories = {}
+        # self.content = {}
 
     def keyframe(self, data):
         self.pose_graph_manager.update(data)
         # Data snapshot, label, etc
 
-    def get_recollection(self, what):
+    def get_recollection(self, what, query=None):
         if what == 'all':
-            return self.data
-        elif what == 'graph':
-            return self.pose_graph_manager.graph_factors
+            return self.content
+        elif what == 'graph': # TODO: Improve this
+            return (self.pose_graph_manager.graph_factors,
+                    self.pose_graph_manager.graph_values,
+                    self.pose_graph_manager.loop_detector)
+        elif what=='targetID':
+            return self.get_data_by_label(query)
+        elif what==None:
+            return "No query provided"
         else:
             raise NotImplementedError(f'Recollection of [{what}] not supported')
+        
+    # def get_data_by_label(self, label):
+    #     associated_data = self.label_graph[label]
+    #     pass
+        
+    # def add_node(self, node_idx, ptcloud):
+    #     self.content[f'{node_idx}']['timestamp'] = time.time()
+    #     self.content[f'{node_idx}']['point_cloud'] = ptcloud
+
+    # def get_node(self, node_idx):
+    #     return self.content[f'{node_idx}']
+    
+    # def get_nodes_before_timestamp(self, timestamp):
+    #     nodes = []
+    #     for key, value in self.content.items():
+    #         if value['timestamp'] < timestamp:
+    #             nodes.append(key)
+    #     return nodes
+    
+    # def compare_content(self, content):
+    #     pass
 
     

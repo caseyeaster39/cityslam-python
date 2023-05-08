@@ -16,10 +16,9 @@ class Entity:
         
         # Communication logic
         if communication_dict['type'] == 'request':
-            self.get_response(sender_id, sender_type)
+            self.get_response(sender_id, sender_type, communication_dict['data'])
         elif communication_dict['type'] == 'response':
-            print(f"{self} received response: {communication_dict['data']} from {communication_dict['sender']}")
-            self.brain.remember(communication_dict['data'])
+            self.handle_response(sender_id, sender_type, communication_dict['data'])
         elif communication_dict['type'] == 'post':
             print(f"{self} received post: {communication_dict['data']} from {communication_dict['sender']}")
             self.brain.remember(communication_dict['data'])
@@ -32,11 +31,17 @@ class Entity:
                     'data': data}                   
         self.manager.post(recipient, recipient_type, package)   
 
-    def get_response(self, requester_id, requester_type):
+    def get_response(self, requester_id, requester_type, data):
         print(f"{self} received request from {requester_type} {requester_id}")
-        data = self.brain.recall('all')
+        data['data'] = self.brain.recall(data['what'])
         self.send_msg(requester_id, requester_type.lower(),
                       'response', data)
+        
+    def handle_response(self, responder_id, responder_type, data):
+        print(f"{self} received response: {type(data)} from {responder_id} {responder_type}")
+        self.brain.remember(data['data'])
+        if data['what']=='graph':
+            self.brain.load_graph(data['data'])
     
     def __str__(self) -> str:
         return f"{self.__class__.__name__} {self.id_num}"
@@ -63,7 +68,7 @@ class RSU(Entity):
             if vehicle.id_num not in self.vehicles_in_range:
                 self.vehicles_in_range.append(vehicle.id_num)
                 self.send_msg(vehicle.id_num, 'vehicle', 
-                               'request', 'request')
+                               'request', {'what': 'graph'})
             return True
         return False
         
@@ -109,13 +114,25 @@ class Vehicle(Entity):
         if rsu_id not in self.in_range_rsu:
             if len(self.in_range_rsu) == self.in_range_rsu.maxlen:
                 target = self.in_range_rsu.pop()
-                data = self.brain.recall(target)
+                data = self.brain.recall(what='targetID', query=target)
                 self.send_msg(rsu_id, 'rsu', 
                                'post', data)
             self.in_range_rsu.appendleft(rsu_id)
             self.send_msg(rsu_id, 'rsu', 
-                          'request', 'request')
+                          'request', {'what': None})
 
     def destroy_actors(self):
         self.brain.forget('all')
         self.vehicle.destroy()
+
+
+# TODO: Implement data packet
+class DataPacket:
+    def __init__(self) -> None:
+        pass
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}"
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}"
