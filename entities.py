@@ -3,9 +3,12 @@ import collections
 from brain import Brain
 
 class Entity:
-    def __init__(self, id_num, manager):
+    def __init__(self, id_num, manager) -> None:
         self.id_num = id_num
         self.manager = manager
+
+    def set_label (self, label):
+        self.label = label
         
     def listen(self, communication_dict):
         # Protect against self-communication
@@ -54,7 +57,8 @@ class RSU(Entity):
         self.v2i_range = communication_range
         self.location = location
 
-        self.brain = Brain()
+        self.brain = Brain(label='X')
+        # self.brain = Brain(label='R')
 
         self.neighbors = neighbors
         self.vehicles_in_range = []
@@ -90,7 +94,8 @@ class Vehicle(Entity):
 
         self.world = world
         self.args = args
-        self.brain = Brain(world, perceive=True)
+        self.brain = Brain(world, perceive=True, label='X')
+        # self.brain = Brain(world, perceive=True, label='V')
         
         self.vehicle = None
         self.in_range_rsu = collections.deque(maxlen=args.rsu_queue_size)

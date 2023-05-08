@@ -3,8 +3,8 @@ import sensors, pose_graph
 
 
 class Brain:
-    def __init__(self, world=None, perceive=False) -> None:
-        self.memory_manager = MemoryManager()
+    def __init__(self, world=None, perceive=False, label='X') -> None:
+        self.memory_manager = MemoryManager(label)
         if perceive:
             if world is None:
                 raise ValueError("Perception requires a world")
@@ -46,9 +46,8 @@ class Brain:
                 self.memory_manager.pose_graph_manager.graph_values)
     
     def load_graph(self, graph):
-        self.memory_manager.pose_graph_manager.graph_factors = graph[0]
-        self.memory_manager.pose_graph_manager.graph_values = graph[1]
-        self.memory_manager.pose_graph_manager.loop_detector = graph[2]
+        symbols = self.memory_manager.pose_graph_manager.loop_detector.mergeData(graph[2])
+        self.memory_manager.pose_graph_manager.merge_graph(symbols, graph[0], graph[1])
         self.memory_manager.pose_graph_manager.detect_all_loops()
 
 
@@ -75,8 +74,10 @@ class PerceptionManager:
 
 
 class MemoryManager:
-    def __init__(self) -> None:
-        self.pose_graph_manager = pose_graph.PoseGraphManager()
+    def __init__(self, label) -> None:
+        self.label = label
+
+        self.pose_graph_manager = pose_graph.PoseGraphManager(self.label)
         self.pose_graph_manager.add_prior()
         self.pose_graph_manager.set_loop_detector(pose_graph.ScanContextManager())
 
@@ -93,9 +94,7 @@ class MemoryManager:
         if what == 'all':
             return self.content
         elif what == 'graph': # TODO: Improve this
-            return (self.pose_graph_manager.graph_factors,
-                    self.pose_graph_manager.graph_values,
-                    self.pose_graph_manager.loop_detector)
+            return self.pose_graph_manager.get_communication_data()
         elif what=='targetID':
             return self.get_data_by_label(query)
         elif what==None:
