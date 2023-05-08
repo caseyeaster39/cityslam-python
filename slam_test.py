@@ -171,7 +171,7 @@ def vis_loop(world, v2x_manager):
         frame += 1
 
 
-def main(args, pose_vis=True):
+def main(args, pose_vis=False):
     try:
         ### CARLA Setup ###
         client = carla.Client(args.host, args.port)
@@ -214,6 +214,8 @@ def main(args, pose_vis=True):
     if pose_vis:
         plt.ion()
         visualize_pose_graph(graph, 'Pose Graph')
+        # for idx in range(40, 60):
+        #     v2x_manager.rsu_list[0].brain.memory_manager.pose_graph_manager.loop_detector.plotNode(idx)
 
 if __name__ == '__main__':
     args = parse_carla_args()

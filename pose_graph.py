@@ -3,6 +3,7 @@ import math
 import time
 import gtsam
 import numpy as np
+import matplotlib.pyplot as plt
 import open3d as o3d
 from scipy import spatial
 
@@ -350,6 +351,17 @@ class ScanContextManager:
         dist = 1 - sim
 
         return dist, yaw_diff
+
+    def plotNode(self, node_idx):
+        fig = plt.figure(figsize=(20, 10))
+        ax2 = fig.add_subplot()
+
+        # plot scan context map
+        sc = self.scancontexts[node_idx]
+        ax2.imshow(sc, cmap='gray')
+
+        plt.show()
+        input()
 
 ####################################################################################################
 # Adapted from:
