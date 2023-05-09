@@ -45,9 +45,10 @@ class Brain:
         return (self.memory_manager.pose_graph_manager.graph_factors, 
                 self.memory_manager.pose_graph_manager.graph_values)
     
-    def load_graph(self, graph):
-        symbols = self.memory_manager.pose_graph_manager.loop_detector.mergeData(graph[2])
-        self.memory_manager.pose_graph_manager.merge_graph(symbols, graph[0], graph[1])
+    def load_graph(self, data):
+        graph = (data[0], data[1])
+        content = data[2]
+        self.memory_manager.pose_graph_manager.merge_graph(graph, content)
         self.memory_manager.pose_graph_manager.detect_all_loops()
 
 

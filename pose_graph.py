@@ -8,6 +8,7 @@ import open3d as o3d
 from scipy import spatial
 
 # TODO: Merging pose graphs
+# TODO: VCS-inspired merging of data
 # TODO: Distributed pose graph optimization
 
 class PoseGraphManager:
@@ -25,8 +26,7 @@ class PoseGraphManager:
         self.current_pose = np.eye(4)
         self.previous_pc = None
 
-        self.current_node_idx = 0
-        self.previous_node_idx = 0
+        self.count = 0
 
         self.loop_detector = None
         self.icp_init = np.eye(4)
@@ -36,29 +36,40 @@ class PoseGraphManager:
         self.loop_detector = loop_detector
 
     def get_communication_data(self):
-        loop_data = self.loop_detector.get_communication_data()
-        return (self.graph_factors, self.graph_values, loop_data)
+        content_dict = self.loop_detector.get_communication_data()
+        return (self.graph_factors, self.graph_values, content_dict)
+    
+    def generate_symbol(self, previous=False):
+        node = self.count - 1 if previous else self.count
+        return gtsam.symbol(self.label, node)
+    
+    def value_safe_add(self, symbol, pose):
+        try: # TODO: rename to merge node and make smarter
+            self.graph_values.insert(symbol, pose)
+        except RuntimeError:
+            print(f"Key {symbol_to_str(symbol)} already exists in graph")
 
     def add_prior(self):
+        symbol = self.generate_symbol()
         self.graph_factors.add(
-            gtsam.PriorFactorPose3(gtsam.symbol(self.label, self.current_node_idx), 
+            gtsam.PriorFactorPose3(symbol, 
                                    gtsam.Pose3(self.current_pose), 
                                    self.prior_cov))
-        self.graph_values.insert(gtsam.symbol(self.label, self.current_node_idx), gtsam.Pose3(self.current_pose))
-        self.current_node_idx += 1
+        self.graph_values.insert(symbol, gtsam.Pose3(self.current_pose))
+        self.count += 1
 
     def add_odometry(self, odom_transform):
+        symbol = self.generate_symbol()
+        prev_symbol = self.generate_symbol(previous=True)
         self.graph_factors.add(
-            gtsam.BetweenFactorPose3(gtsam.symbol(self.label, self.previous_node_idx), 
-                                     gtsam.symbol(self.label, self.current_node_idx), 
+            gtsam.BetweenFactorPose3(prev_symbol, symbol, 
                                      gtsam.Pose3(odom_transform), 
                                      self.odometry_cov))
-        self.graph_values.insert(gtsam.symbol(self.label, self.current_node_idx), gtsam.Pose3(self.current_pose))
+        self.graph_values.insert(symbol, gtsam.Pose3(self.current_pose))
 
-    def add_loop(self, loop_idx_1, loop_idx_2, loop_transform):
+    def add_loop(self, symbol, loop_symbol, loop_transform):
         self.graph_factors.add(
-            gtsam.BetweenFactorPose3(gtsam.symbol(self.label, loop_idx_2), 
-                                     gtsam.symbol(self.label, loop_idx_1), 
+            gtsam.BetweenFactorPose3(loop_symbol, symbol, 
                                      gtsam.Pose3(loop_transform), 
                                      self.loop_cov))
         
@@ -69,21 +80,22 @@ class PoseGraphManager:
                                                       gtsam.LevenbergMarquardtParams())
         self.graph_optimized = optimizer.optimize()
 
-        pose = self.graph_optimized.atPose3(gtsam.symbol(self.label, self.current_node_idx))
+        symbol = self.generate_symbol()
+        pose = self.graph_optimized.atPose3(symbol)
 
         self.current_pose[:3, 3] = np.array([pose.x(), pose.y(), pose.z()])    # Translation
         self.current_pose[:3, :3] = pose.rotation().matrix()                   # Rotation
 
     def update(self, point_cloud):
-        print(f"Current node: {self.current_node_idx}")
-        if self.current_node_idx == 1:
+        symbol = self.generate_symbol()
+        print(f"Current node: {symbol_to_str(symbol)}")
+        if self.count == 1:
             self.previous_pc = copy.deepcopy(point_cloud)
         pc_downsampled = point_cloud.uniform_down_sample(every_k_points=10)
         pc_previous_downsampled = self.previous_pc.uniform_down_sample(every_k_points=10)
 
-        self.loop_detector.addNode(symbol=gtsam.symbol(self.label, self.current_node_idx),
-                                   node_idx=self.current_node_idx-1,
-                                   ptcloud=pc_downsampled)
+        content = self.loop_detector.generate_content(pc_downsampled)
+        self.loop_detector.addNode(symbol, content)
 
         # TODO: Improve odometry (EKF?)
         odom_transform = self.icp(pc_downsampled, pc_previous_downsampled)
@@ -92,40 +104,50 @@ class PoseGraphManager:
         self.add_odometry(odom_transform)
         self.icp_init = odom_transform
 
-        # if(self.curr_node_idx > 1 and self.curr_node_idx % 10 == 0):
-        #     self.detect_loops(self.current_node_idx-1)
+        # if(self.count > 1 and self.count % 10 == 0):
+        #     self.detect_loops(symbol)
         
         self.previous_pc = copy.deepcopy(point_cloud)
-        self.previous_node_idx = self.current_node_idx
-        self.current_node_idx += 1
+        self.count += 1
 
-    def merge_graph(self, symbols, graph_factors, graph_values):
-        # TODO: Only merge selected symbols
-        # self.graph_factors.add(graph_factors)
-        # self.graph_values.update(graph_values)
-        self.graph_factors = graph_factors  
-        self.graph_values = graph_values
+    def merge_graph(self, graph, content):
+        graph_factors, graph_values = graph
+        # TODO: GLOBAL REFERENCE FRAME, smarter merging
+        for idx in range(graph_factors.size()):
+            factor = graph_factors.at(idx)
+            symbol = factor.keys()[1] if isinstance(factor, gtsam.BetweenFactorPose3) else factor.keys()[0]
+            pose = graph_values.atPose3(symbol)
+            self.value_safe_add(symbol, pose)
+            self.graph_factors.add(factor)
 
-    def detect_loop(self, node_idx):
-        loop_idx, _, yaw_diff_deg = self.loop_detector.detectLoop(node_idx)
-        if loop_idx is not None:
-            self.close_loop(node_idx, loop_idx, yaw_diff_deg)
+            try:
+                self.loop_detector.addNode(symbol, content[symbol])                
+            except KeyError:
+                print(f"Key {symbol_to_str(symbol)} does not exist in content dict")
 
-    def close_loop(self, loop_idx_1, loop_idx_2, yaw_diff_deg):
-        print(f'Loop detected between node {loop_idx_1} and {loop_idx_2}')
-        pc_downsampled_1 = self.loop_detector.getPtcloud(loop_idx_1)
-        pc_downsampled_2 = self.loop_detector.getPtcloud(loop_idx_2)
+    def detect_loop(self, symbol):
+        loop_symbol, _, yaw_diff_deg = self.loop_detector.detectLoop(symbol)
+        if loop_symbol is not None:
+            self.close_loop(symbol, loop_symbol, yaw_diff_deg)
+
+    def close_loop(self, symbol_1, symbol_2, yaw_diff_deg):
+        symbol_1_str = symbol_to_str(symbol_1)
+        symbol_2_str = symbol_to_str(symbol_2)
+        print(f'Loop detected between node {symbol_1_str} and {symbol_2_str}')
+        pc_downsampled_1 = self.loop_detector.getPtcloud(symbol_1)
+        pc_downsampled_2 = self.loop_detector.getPtcloud(symbol_2)
         loop_transform = self.icp(pc_downsampled_1, pc_downsampled_2,
                                     init_pose=self.yawdeg2se3(yaw_diff_deg))
-        self.add_loop(loop_idx_1+1, loop_idx_2+1, loop_transform)
+        self.add_loop(symbol_1, symbol_2, loop_transform)
         self.optimize()
 
     def detect_all_loops(self):
         loops = self.loop_detector.detectAllLoops()
-        for loop_idx, loop_candidates in loops.items():
+        for loop_symbol, loop_candidates in loops.items():
             for loop_candidate in loop_candidates:
-                print(f"loop_candidate: {loop_candidate}")
-                self.close_loop(loop_idx, loop_candidate[0], loop_candidate[1])
+                print(f"loop_candidate: {symbol_to_str(loop_candidate[0])}, \
+                      dist: {loop_candidate[1]}, yaw_diff: {loop_candidate[2]}")
+                self.close_loop(loop_symbol, loop_candidate[0], loop_candidate[1])
 
     def icp(self, pc_downsampled, pc_previous_downsampled, init_pose=None):
         reg_p2p = o3d.pipelines.registration.registration_icp(source = pc_downsampled, 
@@ -137,126 +159,99 @@ class PoseGraphManager:
         return reg_p2p.transformation
     
     def yawdeg2se3(self, yaw_deg):
-        yaw_rad = np.deg2rad(yaw_deg)
+        yaw = np.deg2rad(yaw_deg)
         se3 = np.eye(4)
-        se3[:3, :3] = self.eulerAnglesToRotationMatrix(yaw_rad)
-        return se3 
-
-    @staticmethod
-    def eulerAnglesToRotationMatrix(yaw) :        
-        # assuming roll and pitch both equal 0
-        
-        # yaw
-        R = np.array([[math.cos(yaw),     -math.sin(yaw),    0],
-                        [math.sin(yaw),     math.cos(yaw),     0],
-                        [0,                 0,                 1]])    
-        return R
-    
+        se3[:3, :3] = np.array([[math.cos(yaw),     -math.sin(yaw),    0],
+                                [math.sin(yaw),     math.cos(yaw),     0],
+                                [0,                 0,                 1]]) 
+        return se3    
 
 class ScanContextManager:
     def __init__(self, shape=[20,60], num_candidates=10, threshold=0.15): # defualt configs are same as the original paper 
         self.shape = shape
         self.num_candidates = num_candidates
         self.threshold = threshold
-
         self.max_length = 80 # recommended but other (e.g., 100m) is also ok.
 
-        storage_maximum = 15000 # capable of up to [storage_maximum] number of nodes 
-        self.ptclouds = [None] * storage_maximum
-        self.scancontexts = [None] * storage_maximum
-        self.ringkeys = [None] * storage_maximum
-        self.timestamps = [None] * storage_maximum
-        self.symbol_map = {}
-
-        self.time_last_checked = time.time()
-        self.count = 0
+        self.content_map = {}
 
     def get_communication_data(self):
-        resp = {
-            "pointcloud": self.ptclouds,
-            "scancontext": self.scancontexts,
-            "ringkey": self.ringkeys,
-            "timestamp": self.timestamps,
-            "symbols": self.symbol_map,
-            "count": self.count
+        return self.content_map
+    
+    def generate_content(self, ptcloud):
+        return {
+            'pointcloud': ptcloud,
+            'scancontext': self.ptcloud2sc(ptcloud),
+            'ringkey': self.sc2rk(self.ptcloud2sc(ptcloud)),
+            'timestamp': time.time()
         }
-        return resp
 
-    def addNode(self, node_idx, symbol, ptcloud):
-        sc = self.ptcloud2sc(ptcloud)
-        rk = self.sc2rk(sc)
+    def addNode(self, symbol, content):
+        if symbol in self.content_map:
+            self.mergeNode(symbol, content)
+        else:
+            self.content_map[symbol] = content
 
-        self.symbol_map[symbol] = node_idx
+    def mergeNode(self, symbol, content): 
+        # TODO: VCS merge data, plus how to merge graphs too?
+        if self.content_map[symbol]['timestamp'] < content['timestamp']:
+            self.content_map[symbol] = content
 
-        self.ptclouds[node_idx] = ptcloud
-        self.scancontexts[node_idx] = sc
-        self.ringkeys[node_idx] = rk
-        self.timestamps[node_idx] = time.time()
+    def getPtcloud(self, symbol):
+        return self.content_map[symbol]['pointcloud']
 
-        self.count += 1
+    def detectLoop(self, candidate_symbol):  
+        # TODO: pull out node validation to a separate function so that merged and non-merged nodes can be handled there 
+        node_content = self.content_map[candidate_symbol]
 
-    def mergeData(self, data): # TODO: actually merge data
-        self.ptclouds = data["pointcloud"]
-        self.scancontexts = data["scancontext"]
-        self.ringkeys = data["ringkey"]
-        self.timestamps = data["timestamp"]
-        self.symbol_map = data["symbols"]
+        exclude_nodes_since = 15 # seconds
+        valid_before = node_content['timestamp'] - exclude_nodes_since
 
-        self.count = data["count"]
+        symbol_history = np.array([symbol for symbol in self.content_map.keys()
+                                    if self.content_map[symbol]['timestamp'] < valid_before])
+        ringkey_history = np.array([self.content_map[symbol]['ringkey'] for symbol in symbol_history])
 
-        self.time_last_checked = time.time()
-
-    def getPtcloud(self, node_idx):
-        return self.ptclouds[node_idx]
-
-    def detectLoop(self, node_idx):     
-        exclude_recent_nodes = 30
-        valid_recent_node_idx = node_idx - exclude_recent_nodes
-
-        if(valid_recent_node_idx < 1):
+        if len(ringkey_history) == 0:
             return None, None, None
         else:
-            print(f"Detecting loop for node {node_idx}...")   
-            # step 1
-            ringkey_history = np.array(self.ringkeys[:valid_recent_node_idx])
+            print(f"Detecting loop for node {symbol_to_str(candidate_symbol)}...")   
+            # step 1          
             ringkey_tree = spatial.KDTree(ringkey_history)
 
-            ringkey_query = self.ringkeys[node_idx]
+            ringkey_query = node_content['ringkey'] 
             _, nncandidates_idx = ringkey_tree.query(ringkey_query, k=self.num_candidates)
 
             # step 2
-            query_sc = self.scancontexts[node_idx]
+            query_sc = node_content['scancontext']
             
             nn_dist = 1.0 # initialize with the largest value of distance
-            nn_idx = None
+            nn_symbol = None
             nn_yawdiff = None
-            for ith in range(self.num_candidates):
+            for ith in range(min(self.num_candidates, len(ringkey_history))):
                 candidate_idx = nncandidates_idx[ith]
-                candidate_sc = self.scancontexts[candidate_idx]
+                candidate_symbol = symbol_history[candidate_idx]
+                candidate_sc = self.content_map[candidate_symbol]['scancontext']
                 dist, yaw_diff = self.distance_sc(candidate_sc, query_sc)
                 if(dist < nn_dist):
                     nn_dist = dist
                     nn_yawdiff = yaw_diff
-                    nn_idx = candidate_idx
+                    nn_symbol = symbol_history[candidate_idx]
 
             print(f"-----> nn_dist: {nn_dist}, nn_yawdiff: {nn_yawdiff}")
             if(nn_dist < self.threshold):
                 nn_yawdiff_deg = nn_yawdiff * (360/self.shape[1])
-                return nn_idx, nn_dist, nn_yawdiff_deg # loop detected!
+                return nn_symbol, nn_dist, nn_yawdiff_deg # loop detected!
             else:
                 return None, None, None
             
     def detectAllLoops(self):
         loops = {}
-        # TODO: parallelize this loop detection process
-        # TODO: clustering for search efficiency
-        for node_idx in range(self.count): # TODO: better way to do this range
-            loop_idx, _, loop_yawdeg = self.detectLoop(node_idx)
-            if(loop_idx is not None):
-                if(node_idx not in loops.keys()):
-                    loops[node_idx] = []
-                loops[node_idx].append([loop_idx, loop_yawdeg])
-
+        for symbol in self.content_map.keys():
+            loop_symbol, loop_dist, loop_yawdeg = self.detectLoop(symbol)
+            if(loop_symbol is not None):
+                if(loop_symbol not in loops):
+                    loops[loop_symbol] = []
+                loops[loop_symbol].append((symbol, loop_dist, loop_yawdeg))
         return loops
             
     def ptcloud2sc(self, ptcloud):        
@@ -333,7 +328,7 @@ class ScanContextManager:
             for j in range(num_sectors):
                 col_j_1 = sc1[:, j]
                 col_j_2 = sc2[:, j]
-                if (~np.any(col_j_1) or ~np.any(col_j_2)): 
+                if (not np.count_nonzero(col_j_1) or not np.count_nonzero(col_j_2)):
                     # to avoid being divided by zero when calculating cosine similarity
                     # - but this part is quite slow in python, you can omit it.
                     continue 
@@ -362,6 +357,16 @@ class ScanContextManager:
 
         plt.show()
         input()
+
+
+def symbol_to_str(symbol):
+    return f"{chr(gtsam.symbolChr(symbol))}{gtsam.symbolIndex(symbol)}"
+
+
+# TODO: TBD if this is needed
+class OdometryManager:
+    def __init__(self) -> None:
+        pass
 
 ####################################################################################################
 # Adapted from:

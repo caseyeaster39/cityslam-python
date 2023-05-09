@@ -149,8 +149,10 @@ def visualize_pose_graph(graph, fig_name=None):
     input()
 
 
-def vis_loop(world, v2x_manager):
+def vis_loop(world, v2x_manager, spectator):
     vehicle = v2x_manager.vehicle_list[0]
+    spectator_transform = carla.Transform(carla.Location(x=0, y=0, z=50), carla.Rotation(pitch=-90))
+    spectator.set_transform(vehicle.vehicle.get_transform())
 
     point_cloud = vehicle.brain.get_sensor_data('Lidar')
     pc_vis = vehicle.brain.get_sensor_vis('Lidar')
@@ -161,6 +163,11 @@ def vis_loop(world, v2x_manager):
             pc_vis.add_geometry(point_cloud)
         if frame % v2x_manager.args.ping_every == 0:
             v2x_manager.ping()
+
+        # TODO: Make this less jerky
+        spectator_transform.location = vehicle.vehicle.get_location() + carla.Location(z=50)
+        spectator_transform.rotation.yaw = vehicle.vehicle.get_transform().rotation.yaw
+        spectator.set_transform(spectator_transform)
             
         pc_vis.update_geometry(point_cloud)
         pc_vis.poll_events()
@@ -171,7 +178,7 @@ def vis_loop(world, v2x_manager):
         frame += 1
 
 
-def main(args, pose_vis=False):
+def main(args, pose_vis=True):
     try:
         ### CARLA Setup ###
         client = carla.Client(args.host, args.port)
@@ -194,13 +201,15 @@ def main(args, pose_vis=False):
         traffic_manager.ignore_lights_percentage(vehicle_manager.vehicle, 100)
         settings.fixed_delta_seconds = args.delta
         settings.synchronous_mode = True
-        world.apply_settings(settings)      
+        world.apply_settings(settings)    
+
+        spectator = world.get_spectator()
 
         ### RSU Setup ###
         v2x_manager.add_rsu(carla.Location(x=-44.4, y=18.8, z=2.5), 44, [])
         
         ### Main Loop ###
-        vis_loop(world, v2x_manager)
+        vis_loop(world, v2x_manager, spectator)
 
     except KeyboardInterrupt:
         graph = v2x_manager.rsu_list[0].brain.get_graph()
