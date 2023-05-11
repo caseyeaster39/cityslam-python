@@ -66,7 +66,7 @@ class RSU(Entity):
     def add_neighbor(self, neighbor):
         self.neighbors.append(neighbor)
 
-    def ping_vehicle(self, vehicle):
+    def ping_vehicle(self, vehicle): # TODO: Make this in line with paper
         if self.location.distance(vehicle.vehicle.get_location()) <= self.v2i_range:
             vehicle.handle_ping(self.id_num)
             if vehicle.id_num not in self.vehicles_in_range:
