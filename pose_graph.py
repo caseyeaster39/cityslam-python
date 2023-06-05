@@ -44,6 +44,9 @@ class PoseGraphManager:
     def get_communication_data(self):
         content_dict = self.loop_detector.get_communication_data()
         return (self.graph_factors, self.graph_values, content_dict)
+
+    def get_nodes(self):
+        return self.graph_directory.nodes
     
     def generate_symbol(self, previous=False):
         node = self.count - 1 if previous else self.count

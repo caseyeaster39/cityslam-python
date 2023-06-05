@@ -56,8 +56,7 @@ class RSU(Entity):
         self.v2i_range = communication_range
         self.location = location
 
-        self.brain = Brain(label='X')
-        # self.brain = Brain(label=label)
+        self.brain = Brain(label=label)
 
         self.neighbors = neighbors
         self.vehicles_in_range = []
@@ -71,7 +70,8 @@ class RSU(Entity):
             if vehicle.id_num not in self.vehicles_in_range:
                 self.vehicles_in_range.append(vehicle.id_num)
                 self.send_msg(vehicle.id_num, 'vehicle', 
-                               'request', {'what': 'graph'})
+                               'request', {'what': 'graph',
+                                           'nodes': self.brain.recall('nodes')})
             return True
         return False
         
@@ -93,8 +93,8 @@ class Vehicle(Entity):
 
         self.world = world
         self.args = args
-        self.brain = Brain(world, perceive=True, label='X')
-        # self.brain = Brain(world, perceive=True, label=label)
+        
+        self.brain = Brain(world, perceive=True, label=label)
         
         self.vehicle = None
         self.in_range_rsu = collections.deque(maxlen=args.rsu_queue_size)

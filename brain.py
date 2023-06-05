@@ -92,8 +92,10 @@ class MemoryManager:
             return self.content
         elif what == 'graph': # TODO: Improve this
             return self.pose_graph_manager.get_communication_data()
-        elif what=='targetID':
+        elif what=='targetID': # TODO: Implement this
             return self.get_data_by_label(query)
+        elif what=='nodes':
+            return self.pose_graph_manager.get_nodes()
         elif what==None:
             return "No query provided"
         else:
