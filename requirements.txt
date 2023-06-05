@@ -1,3 +1,6 @@
 gtsam==4.1.1
 matplotlib==3.5.3
+networkx==2.6.3
+numpy==1.21.6
 open3d==0.17.0
+scipy==1.7.3

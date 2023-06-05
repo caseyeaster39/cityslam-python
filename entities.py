@@ -34,7 +34,7 @@ class Entity:
         self.manager.post(recipient, recipient_type, package)   
 
     def formulate_response(self, requester_id, requester_type, data):
-        print(f"{self} received request from {requester_type} {requester_id}, existing nodes: {data}") # TODO: give nodes to each entity, even if none
+        print(f"{self} received request from {requester_type} {requester_id}, existing nodes: {data['nodes']}")
         data['data'] = self.brain.recall(data['what'])
         self.send_msg(requester_id, requester_type.lower(),
                       'response', data)
@@ -123,7 +123,8 @@ class Vehicle(Entity):
                                'post', data)
             self.in_range_rsu.appendleft(rsu_id)
             self.send_msg(rsu_id, 'rsu', 
-                          'request', {'what': None})
+                          'request', {'what': None,
+                                      'nodes': self.brain.recall('nodes')})
 
     def destroy_actors(self):
         self.brain.forget('all')
