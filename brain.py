@@ -19,6 +19,7 @@ class Brain:
     def forget(self, what):
         if what == 'all':
             self.perception_manager.destroy_actors()
+        # TODO: forget by target id (with logic)
         self.memory_manager.data = {}
 
     def check_sensor(self, sensor_type):
@@ -60,15 +61,11 @@ class PerceptionManager:
     def spawn_sensor(self, args, vehicle, sensor_type, memory_manager):
         if sensor_type.lower() == 'lidar':
             self.lidar_manager = sensors.LidarManager(args, self.world)
-            self.lidar_manager.spawn_lidar(vehicle, memory_manager)   
-        else:
-            raise NotImplementedError(f'Sensor type [{sensor_type}] not supported')
+            self.lidar_manager.spawn_lidar(vehicle, memory_manager)
 
     def start_vis(self, sensor_type):
         if sensor_type.lower() == 'lidar':
             self.lidar_manager.start_vis()
-        else:
-            raise NotImplementedError(f'Visualization for [{sensor_type}] not supported')
 
     def destroy_actors(self):
         self.lidar_manager.destroy_actors()

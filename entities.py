@@ -3,15 +3,13 @@ import collections
 from brain import Brain
 
 class Entity:
-    def __init__(self, id_num, manager) -> None:
+    def __init__(self, id_num, manager, label) -> None:
         self.id_num = id_num
         self.manager = manager
-
-    def set_label (self, label):
         self.label = label
         
     def listen(self, communication_dict):
-        # Protect against self-communication
+        # Protect against self-communication loops
         sender_type, sender_id = communication_dict['sender'].split()
         if self.id_num == sender_id:
             print(f"{self} received its own data: {communication_dict['data']}")
@@ -19,10 +17,11 @@ class Entity:
         
         # Communication logic
         if communication_dict['type'] == 'request':
-            self.get_response(sender_id, sender_type, communication_dict['data'])
+            self.formulate_response(sender_id, sender_type, communication_dict['data'])
         elif communication_dict['type'] == 'response':
             self.handle_response(sender_id, sender_type, communication_dict['data'])
         elif communication_dict['type'] == 'post':
+            # TODO: multi-hop post logic
             print(f"{self} received post: {communication_dict['data']} from {communication_dict['sender']}")
             self.brain.remember(communication_dict['data'])
         else:
@@ -34,7 +33,7 @@ class Entity:
                     'data': data}                   
         self.manager.post(recipient, recipient_type, package)   
 
-    def get_response(self, requester_id, requester_type, data):
+    def formulate_response(self, requester_id, requester_type, data):
         print(f"{self} received request from {requester_type} {requester_id}")
         data['data'] = self.brain.recall(data['what'])
         self.send_msg(requester_id, requester_type.lower(),
@@ -51,14 +50,14 @@ class Entity:
 
 
 class RSU(Entity):
-    def __init__(self, id_num, location, communication_range, neighbors: list, manager) -> None:
-        super().__init__(id_num, manager)
+    def __init__(self, id_num, location, communication_range, neighbors: list, manager, label) -> None:
+        super().__init__(id_num, manager, label)
 
         self.v2i_range = communication_range
         self.location = location
 
         self.brain = Brain(label='X')
-        # self.brain = Brain(label='R')
+        # self.brain = Brain(label=label)
 
         self.neighbors = neighbors
         self.vehicles_in_range = []
@@ -89,13 +88,13 @@ class RSU(Entity):
                 
 
 class Vehicle(Entity):
-    def __init__(self, id_num, world, args, manager) -> None:
-        super().__init__(id_num, manager)
+    def __init__(self, id_num, world, args, manager, label) -> None:
+        super().__init__(id_num, manager, label)
 
         self.world = world
         self.args = args
         self.brain = Brain(world, perceive=True, label='X')
-        # self.brain = Brain(world, perceive=True, label='V')
+        # self.brain = Brain(world, perceive=True, label=label)
         
         self.vehicle = None
         self.in_range_rsu = collections.deque(maxlen=args.rsu_queue_size)
@@ -137,7 +136,7 @@ class DataPacket:
         pass
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}"
+        return f"{self.__class__.__name__}" # TODO: Add more info
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}"
+        return f"{self.__class__.__name__}" # TODO: Add more info

@@ -9,12 +9,28 @@ class V2X_Manager:
         self.rsu_list = []
         self.vehicle_list = []
 
+        self.rsu_counter = 0
+        self.vehicle_counter = 0
+
+    def get_label(self, entity_type):
+        if entity_type == 'rsu':
+            response = chr(ord('A') + self.rsu_counter)
+            self.rsu_counter += 1
+        elif entity_type == 'vehicle':
+            response = chr(ord('a') + self.vehicle_counter)
+            self.vehicle_counter += 1
+        else:
+            raise ValueError(f"{entity_type} is not a valid entity type")
+        return response
+
     def add_rsu(self, spawn_location, communication_range, neighbors: list):
-        rsu = entities.RSU(uuid.uuid4(), spawn_location, communication_range, neighbors, self)
+        label = self.get_label('rsu')
+        rsu = entities.RSU(uuid.uuid4(), spawn_location, communication_range, neighbors, self, label)
         self.rsu_list.append(rsu)
 
     def add_vehicle(self, vehicle_type, behavior, spawn_location=None, sensors = [], vis=False):
-        vehicle = entities.Vehicle(uuid.uuid4(), self.world, self.args, self)
+        label = self.get_label('vehicle')
+        vehicle = entities.Vehicle(uuid.uuid4(), self.world, self.args, self, label)
         vehicle.spawn_vehicle(vehicle_type, behavior, spawn_location)
         if len(sensors) > 0:
             for sensor in sensors:
@@ -41,5 +57,3 @@ class V2X_Manager:
         for rsu in self.rsu_list:
             rsu.ping_vehicle_list(self.vehicle_list)
                     
-    
-    

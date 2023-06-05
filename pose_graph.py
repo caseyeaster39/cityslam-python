@@ -7,13 +7,14 @@ import matplotlib.pyplot as plt
 import open3d as o3d
 from scipy import spatial
 
-# TODO: Merging pose graphs
+# TODO: Merging pose graphs with loop detection
 # TODO: VCS-inspired merging of data
 # TODO: Distributed pose graph optimization
 
 class PoseGraphManager:
     def __init__(self, label) -> None:
         self.label = label
+        self.count = 0
 
         self.prior_cov = gtsam.noiseModel.Diagonal.Sigmas(np.array([1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4]))
         self.constraint_cov = np.array([0.5, 0.5, 0.5, 0.1, 0.1, 0.1])
@@ -24,13 +25,11 @@ class PoseGraphManager:
         self.graph_values = gtsam.Values()
 
         self.current_pose = np.eye(4)
-        self.previous_pc = None
-
-        self.count = 0
-
-        self.loop_detector = None
         self.icp_init = np.eye(4)
+
+        self.previous_pc = None
         self.graph_optimized = None
+        self.loop_detector = None
 
     def set_loop_detector(self, loop_detector):
         self.loop_detector = loop_detector
@@ -42,12 +41,6 @@ class PoseGraphManager:
     def generate_symbol(self, previous=False):
         node = self.count - 1 if previous else self.count
         return gtsam.symbol(self.label, node)
-    
-    def value_safe_add(self, symbol, pose):
-        try: # TODO: rename to merge node and make smarter
-            self.graph_values.insert(symbol, pose)
-        except RuntimeError:
-            print(f"Key {symbol_to_str(symbol)} already exists in graph")
 
     def add_prior(self):
         symbol = self.generate_symbol()
@@ -112,18 +105,25 @@ class PoseGraphManager:
 
     def merge_graph(self, graph, content):
         graph_factors, graph_values = graph
-        # TODO: GLOBAL REFERENCE FRAME, smarter merging
+        # TODO: GLOBAL REFERENCE FRAME
+        # # TODO: smarter merging
         for idx in range(graph_factors.size()):
             factor = graph_factors.at(idx)
             symbol = factor.keys()[1] if isinstance(factor, gtsam.BetweenFactorPose3) else factor.keys()[0]
             pose = graph_values.atPose3(symbol)
-            self.value_safe_add(symbol, pose)
+            self.merge_node(symbol, pose)
             self.graph_factors.add(factor)
 
             try:
                 self.loop_detector.addNode(symbol, content[symbol])                
             except KeyError:
                 print(f"Key {symbol_to_str(symbol)} does not exist in content dict")
+    
+    def merge_node(self, symbol, pose):
+        try: # TODO: improve logic
+            self.graph_values.insert(symbol, pose)
+        except RuntimeError:
+            print(f"Key {symbol_to_str(symbol)} already exists in graph")
 
     def detect_loop(self, symbol):
         loop_symbol, _, yaw_diff_deg = self.loop_detector.detectLoop(symbol)
@@ -193,7 +193,7 @@ class ScanContextManager:
             self.content_map[symbol] = content
 
     def mergeNode(self, symbol, content): 
-        # TODO: VCS merge data, plus how to merge graphs too?
+        # TODO: VCS merge data
         if self.content_map[symbol]['timestamp'] < content['timestamp']:
             self.content_map[symbol] = content
 
@@ -272,7 +272,6 @@ class ScanContextManager:
         sc = np.amax(sc_storage, axis=0)
             
         return sc
-
 
     def pt2rs(self, point):
         gap_ring = self.max_length/self.shape[0]
