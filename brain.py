@@ -43,14 +43,14 @@ class Brain:
         return self.perception_manager.lidar_manager.vis
         
     def get_graph(self):
-        return (self.memory_manager.pose_graph_manager.graph_factors, 
-                self.memory_manager.pose_graph_manager.graph_values)
+        return (self.memory_manager.graph_factors, 
+                self.memory_manager.graph_values)
     
     def load_graph(self, data):
         graph = (data[0], data[1])
         content = data[2]
-        self.memory_manager.pose_graph_manager.merge_graph(graph, content)
-        self.memory_manager.pose_graph_manager.detect_all_loops()
+        self.memory_manager.merge_graph(graph, content)
+        self.memory_manager.detect_all_loops()
 
 
 class PerceptionManager:
@@ -71,31 +71,24 @@ class PerceptionManager:
         self.lidar_manager.destroy_actors()
 
 
-class MemoryManager:
+class MemoryManager(pose_graph.PoseGraphManager):
     def __init__(self, label) -> None:
-        self.label = label
-
-        self.pose_graph_manager = pose_graph.PoseGraphManager(self.label)
-        self.pose_graph_manager.set_loop_detector(pose_graph.ScanContextManager())
-
-        self.label_graph = {}
+        super().__init__(label)
+        self.set_loop_detector(pose_graph.ScanContextManager())
 
         self.memories = {}
-        # self.content = {}
 
     def keyframe(self, data):
-        self.pose_graph_manager.update(data)
+        self.update(data)
         # Data snapshot, label, etc
 
     def get_recollection(self, what, query=None):
-        if what == 'all':
-            return self.content
-        elif what == 'graph': # TODO: Improve this
-            return self.pose_graph_manager.get_communication_data()
+        if what == 'graph': # TODO: Improve this
+            return self.get_communication_data(existing_nodes=query, get_content=True) # TODO: conditions where get_content is False
         elif what=='targetID': # TODO: Implement this
             return self.get_data_by_label(query)
         elif what=='nodes':
-            return self.pose_graph_manager.get_nodes()
+            return self.get_nodes()
         elif what==None:
             return "No query provided"
         else:

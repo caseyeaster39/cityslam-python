@@ -34,8 +34,8 @@ class Entity:
         self.manager.post(recipient, recipient_type, package)   
 
     def formulate_response(self, requester_id, requester_type, data):
-        print(f"{self} received request from {requester_type} {requester_id}, existing nodes: {data['nodes']}")
-        data['data'] = self.brain.recall(data['what'])
+        print(f"{self} received request from {requester_type} {requester_id}")
+        data['data'] = self.brain.recall(data['what'], query=data['nodes'])
         self.send_msg(requester_id, requester_type.lower(),
                       'response', data)
         

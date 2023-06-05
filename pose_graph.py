@@ -41,8 +41,8 @@ class PoseGraphManager:
     def set_loop_detector(self, loop_detector):
         self.loop_detector = loop_detector
 
-    def get_communication_data(self):
-        content_dict = self.loop_detector.get_communication_data()
+    def get_communication_data(self, existing_nodes=None, get_content=False):
+        content_dict = self.loop_detector.get_communication_data(self.graph_directory, existing_nodes=existing_nodes) if get_content else None
         return (self.graph_factors, self.graph_values, content_dict)
 
     def get_nodes(self):
@@ -188,7 +188,7 @@ class ScanContextManager:
 
         self.content_map = {}
 
-    def get_communication_data(self):
+    def get_communication_data(self, directory, existing_nodes):
         return self.content_map
     
     def generate_content(self, ptcloud):
