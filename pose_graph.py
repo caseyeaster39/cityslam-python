@@ -34,7 +34,6 @@ class PoseGraphManager:
         self.icp_init = np.eye(4)
 
         self.previous_pc = None
-        self.graph_optimized = None
         self.loop_detector = None
 
         self.add_prior()
@@ -78,18 +77,18 @@ class PoseGraphManager:
                                      gtsam.Pose3(loop_transform), 
                                      self.loop_cov))
         
-    def optimize(self):
+    def optimize(self, from_symbol):
         print("Optimizing pose graph...")
         optimizer = gtsam.LevenbergMarquardtOptimizer(self.graph_factors,
                                                       self.graph_values, 
                                                       gtsam.LevenbergMarquardtParams())
-        self.graph_optimized = optimizer.optimize()
+        self.graph_values = optimizer.optimize()
 
-        symbol = self.generate_symbol()
-        pose = self.graph_optimized.atPose3(symbol)
+        if self.detect_online:
+            pose = self.graph_values.atPose3(from_symbol)
 
-        self.current_pose[:3, 3] = np.array([pose.x(), pose.y(), pose.z()])    # Translation
-        self.current_pose[:3, :3] = pose.rotation().matrix()                   # Rotation
+            self.current_pose[:3, 3] = np.array([pose.x(), pose.y(), pose.z()])    # Translation
+            self.current_pose[:3, :3] = pose.rotation().matrix()                   # Rotation
 
     def update(self, point_cloud):
         symbol = self.generate_symbol()
@@ -110,7 +109,7 @@ class PoseGraphManager:
         self.icp_init = odom_transform
 
         if(self.detect_online and self.count > 1 and self.count % self.loop_check_interval == 0):
-            self.detect_loops(symbol)
+            self.detect_loop(symbol)
         
         self.previous_pc = copy.deepcopy(point_cloud)
         self.count += 1
@@ -136,11 +135,6 @@ class PoseGraphManager:
         except RuntimeError:
             print(f"Key {symbol_to_str(symbol)} already exists in graph")
 
-    def detect_loop(self, symbol):
-        loop_symbol, _, yaw_diff_deg = self.loop_detector.detectLoop(symbol)
-        if loop_symbol is not None:
-            self.close_loop(symbol, loop_symbol, yaw_diff_deg)
-
     def close_loop(self, symbol_1, symbol_2, yaw_diff_deg):
         symbol_1_str = symbol_to_str(symbol_1)
         symbol_2_str = symbol_to_str(symbol_2)
@@ -150,7 +144,12 @@ class PoseGraphManager:
         loop_transform = self.icp(pc_downsampled_1, pc_downsampled_2,
                                     init_pose=self.yawdeg2se3(yaw_diff_deg))
         self.add_loop(symbol_1, symbol_2, loop_transform)
-        self.optimize()
+        self.optimize(symbol_2)
+
+    def detect_loop(self, symbol):
+        loop_symbol, _, yaw_diff_deg = self.loop_detector.detectLoop(symbol)
+        if loop_symbol is not None:
+            self.close_loop(symbol, loop_symbol, yaw_diff_deg)
 
     def detect_all_loops(self):
         loops = self.loop_detector.detectAllLoops()
