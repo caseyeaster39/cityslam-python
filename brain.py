@@ -76,7 +76,6 @@ class MemoryManager:
         self.label = label
 
         self.pose_graph_manager = pose_graph.PoseGraphManager(self.label)
-        self.pose_graph_manager.add_prior()
         self.pose_graph_manager.set_loop_detector(pose_graph.ScanContextManager())
 
         self.label_graph = {}

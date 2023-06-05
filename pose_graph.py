@@ -5,15 +5,20 @@ import gtsam
 import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
+import networkx as nx
 from scipy import spatial
 
 # TODO: Merging pose graphs with loop detection
 # TODO: VCS-inspired merging of data
 # TODO: Distributed pose graph optimization
 
+# TODO: GLOBAL REFERENCE FRAME: GPS/INSS? or can it be done implicitly via place recognition?
+
 class PoseGraphManager:
-    def __init__(self, label) -> None:
+    def __init__(self, label, detect_online=False, loop_check_interval=10) -> None:
         self.label = label
+        self.detect_online = detect_online
+        self.loop_check_interval = loop_check_interval
         self.count = 0
 
         self.prior_cov = gtsam.noiseModel.Diagonal.Sigmas(np.array([1e-6, 1e-6, 1e-6, 1e-4, 1e-4, 1e-4]))
@@ -23,6 +28,7 @@ class PoseGraphManager:
 
         self.graph_factors = gtsam.NonlinearFactorGraph()
         self.graph_values = gtsam.Values()
+        self.graph_directory = nx.Graph()
 
         self.current_pose = np.eye(4)
         self.icp_init = np.eye(4)
@@ -30,6 +36,8 @@ class PoseGraphManager:
         self.previous_pc = None
         self.graph_optimized = None
         self.loop_detector = None
+
+        self.add_prior()
 
     def set_loop_detector(self, loop_detector):
         self.loop_detector = loop_detector
@@ -44,6 +52,7 @@ class PoseGraphManager:
 
     def add_prior(self):
         symbol = self.generate_symbol()
+        self.graph_directory.add_node(symbol)
         self.graph_factors.add(
             gtsam.PriorFactorPose3(symbol, 
                                    gtsam.Pose3(self.current_pose), 
@@ -54,6 +63,8 @@ class PoseGraphManager:
     def add_odometry(self, odom_transform):
         symbol = self.generate_symbol()
         prev_symbol = self.generate_symbol(previous=True)
+        self.graph_directory.add_node(symbol)
+        self.graph_directory.add_edge(prev_symbol, symbol)
         self.graph_factors.add(
             gtsam.BetweenFactorPose3(prev_symbol, symbol, 
                                      gtsam.Pose3(odom_transform), 
@@ -61,6 +72,7 @@ class PoseGraphManager:
         self.graph_values.insert(symbol, gtsam.Pose3(self.current_pose))
 
     def add_loop(self, symbol, loop_symbol, loop_transform):
+        self.graph_directory.add_edge(symbol, loop_symbol)
         self.graph_factors.add(
             gtsam.BetweenFactorPose3(loop_symbol, symbol, 
                                      gtsam.Pose3(loop_transform), 
@@ -97,16 +109,15 @@ class PoseGraphManager:
         self.add_odometry(odom_transform)
         self.icp_init = odom_transform
 
-        # if(self.count > 1 and self.count % 10 == 0):
-        #     self.detect_loops(symbol)
+        if(self.detect_online and self.count > 1 and self.count % self.loop_check_interval == 0):
+            self.detect_loops(symbol)
         
         self.previous_pc = copy.deepcopy(point_cloud)
         self.count += 1
 
     def merge_graph(self, graph, content):
         graph_factors, graph_values = graph
-        # TODO: GLOBAL REFERENCE FRAME
-        # # TODO: smarter merging
+        # TODO: smarter merging
         for idx in range(graph_factors.size()):
             factor = graph_factors.at(idx)
             symbol = factor.keys()[1] if isinstance(factor, gtsam.BetweenFactorPose3) else factor.keys()[0]
