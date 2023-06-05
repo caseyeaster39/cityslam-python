@@ -11,6 +11,7 @@ from scipy import spatial
 # TODO: Merging pose graphs with loop detection
 # TODO: VCS-inspired merging of data
 # TODO: Distributed pose graph optimization
+# TODO: RSU update optimized graph to vehicle
 
 # TODO: GLOBAL REFERENCE FRAME: GPS/INSS? or can it be done implicitly via place recognition?
 
@@ -40,13 +41,6 @@ class PoseGraphManager:
 
     def set_loop_detector(self, loop_detector):
         self.loop_detector = loop_detector
-
-    def get_communication_data(self, existing_nodes=None, get_content=False):
-        content_dict = self.loop_detector.get_communication_data(self.graph_directory, existing_nodes=existing_nodes) if get_content else None
-        return (self.graph_factors, self.graph_values, content_dict)
-
-    def get_nodes(self):
-        return self.graph_directory.nodes
     
     def generate_symbol(self, previous=False):
         node = self.count - 1 if previous else self.count
@@ -93,7 +87,7 @@ class PoseGraphManager:
             self.current_pose[:3, 3] = np.array([pose.x(), pose.y(), pose.z()])    # Translation
             self.current_pose[:3, :3] = pose.rotation().matrix()                   # Rotation
 
-    def update(self, point_cloud):
+    def update(self, point_cloud, labels):
         symbol = self.generate_symbol()
         print(f"Current node: {symbol_to_str(symbol)}")
         if self.count == 1:
@@ -101,7 +95,7 @@ class PoseGraphManager:
         pc_downsampled = point_cloud.uniform_down_sample(every_k_points=10)
         pc_previous_downsampled = self.previous_pc.uniform_down_sample(every_k_points=10)
 
-        content = self.loop_detector.generate_content(pc_downsampled)
+        content = self.loop_detector.generate_content(pc_downsampled, labels)
         self.loop_detector.addNode(symbol, content)
 
         # TODO: Improve odometry (EKF?)
@@ -188,14 +182,16 @@ class ScanContextManager:
 
         self.content_map = {}
 
-    def get_communication_data(self, directory, existing_nodes):
-        return self.content_map
+    def get_communication_data(self, existing_nodes):
+        return {k: v for k, v in self.content_map.items() if k not in existing_nodes}           
+         
     
-    def generate_content(self, ptcloud):
+    def generate_content(self, ptcloud, labels):
         return {
             'pointcloud': ptcloud,
             'scancontext': self.ptcloud2sc(ptcloud),
             'ringkey': self.sc2rk(self.ptcloud2sc(ptcloud)),
+            'rsus': labels,
             'timestamp': time.time()
         }
 

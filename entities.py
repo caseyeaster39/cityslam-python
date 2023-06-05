@@ -92,12 +92,12 @@ class Vehicle(Entity):
         super().__init__(id_num, manager, label)
 
         self.world = world
-        self.args = args
-        
-        self.brain = Brain(world, perceive=True, label=label)
+        self.args = args        
         
         self.vehicle = None
-        self.in_range_rsu = collections.deque(maxlen=args.rsu_queue_size)
+        self.in_range_rsu = collections.deque(maxlen=args.rsu_queue_size) # TODO: add posting for this case and also in the case of a certain amount of time?
+
+        self.brain = Brain(world, perceive=True, label=label, rsu_labels=self.in_range_rsu) # TODO: verify this updates correctly
 
     def spawn_vehicle(self, vehicle_type, behavior, spawn_location=None):      
         blueprint_library = self.world.get_blueprint_library()

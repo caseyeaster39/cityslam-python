@@ -3,8 +3,8 @@ import sensors, pose_graph
 
 
 class Brain:
-    def __init__(self, world=None, perceive=False, label='X') -> None:
-        self.memory_manager = MemoryManager(label)
+    def __init__(self, world=None, perceive=False, label='X', rsu_labels=None) -> None:
+        self.memory_manager = MemoryManager(label, rsu_labels)
         if perceive:
             if world is None:
                 raise ValueError("Perception requires a world")
@@ -72,15 +72,15 @@ class PerceptionManager:
 
 
 class MemoryManager(pose_graph.PoseGraphManager):
-    def __init__(self, label) -> None:
+    def __init__(self, label, rsu_labels) -> None:
         super().__init__(label)
         self.set_loop_detector(pose_graph.ScanContextManager())
 
+        self.rsu_labels = rsu_labels
         self.memories = {}
 
     def keyframe(self, data):
-        self.update(data)
-        # Data snapshot, label, etc
+        self.update(data, self.rsu_labels)
 
     def get_recollection(self, what, query=None):
         if what == 'graph': # TODO: Improve this
@@ -93,6 +93,13 @@ class MemoryManager(pose_graph.PoseGraphManager):
             return "No query provided"
         else:
             raise NotImplementedError(f'Recollection of [{what}] not supported')
+
+    def get_communication_data(self, existing_nodes=None, get_content=False):
+        content_dict = self.loop_detector.get_communication_data(existing_nodes=existing_nodes) if get_content else None
+        return (self.graph_factors, self.graph_values, content_dict)
+
+    def get_nodes(self):
+        return self.graph_directory.nodes
         
     # def get_data_by_label(self, label):
     #     associated_data = self.label_graph[label]
