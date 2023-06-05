@@ -34,7 +34,7 @@ class Entity:
         self.manager.post(recipient, recipient_type, package)   
 
     def formulate_response(self, requester_id, requester_type, data):
-        print(f"{self} received request from {requester_type} {requester_id}")
+        print(f"{self} received request from {requester_type} {requester_id}, existing nodes: {data}") # TODO: give nodes to each entity, even if none
         data['data'] = self.brain.recall(data['what'])
         self.send_msg(requester_id, requester_type.lower(),
                       'response', data)
