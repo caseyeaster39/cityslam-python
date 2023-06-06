@@ -49,8 +49,8 @@ class Brain:
     def load_graph(self, data):
         graph = (data[0], data[1])
         content = data[2]
-        self.memory_manager.merge_graph(graph, content)
-        self.memory_manager.detect_all_loops()
+        directory = data[3]
+        self.memory_manager.merge_graph(graph, content, directory)
 
 
 class PerceptionManager:
@@ -83,7 +83,7 @@ class MemoryManager(pose_graph.PoseGraphManager):
         self.update(data, self.rsu_labels)
 
     def get_recollection(self, what, query=None):
-        if what == 'graph': # TODO: Improve this
+        if what == 'graph':
             return self.get_communication_data(existing_nodes=query, get_content=True) # TODO: conditions where get_content is False
         elif what=='targetID': # TODO: Implement this
             return self.get_data_by_label(query)
@@ -96,7 +96,7 @@ class MemoryManager(pose_graph.PoseGraphManager):
 
     def get_communication_data(self, existing_nodes=None, get_content=False):
         content_dict = self.loop_detector.get_communication_data(existing_nodes=existing_nodes) if get_content else None
-        return (self.graph_factors, self.graph_values, content_dict)
+        return (self.graph_factors, self.graph_values, content_dict, self.graph_directory)
 
     def get_nodes(self):
         return self.graph_directory.nodes

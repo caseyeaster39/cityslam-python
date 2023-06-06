@@ -111,26 +111,34 @@ class PoseGraphManager:
         self.previous_pc = copy.deepcopy(point_cloud)
         self.count += 1
 
-    def merge_graph(self, graph, content):
-        graph_factors, graph_values = graph
-        # TODO: smarter merging
-        for idx in range(graph_factors.size()):
-            factor = graph_factors.at(idx)
-            symbol = factor.keys()[1] if isinstance(factor, gtsam.BetweenFactorPose3) else factor.keys()[0]
-            pose = graph_values.atPose3(symbol)
-            self.merge_node(symbol, pose)
+    def merge_graph(self, sender_graph, sender_content, sender_directory):
+        anchor_found = True
+        sender_gf, sender_gv = sender_graph # Graph factors, graph values
+        for idx in range(sender_gf.size()):
+            factor = sender_gf.at(idx)
+            (prev_symbol, symbol) = (factor.keys()[0], factor.keys()[1]) if isinstance(factor, gtsam.BetweenFactorPose3) else (None, factor.keys()[0])
+            if prev_symbol and prev_symbol not in self.graph_directory.nodes:
+                anchor_found = False
+                print(f"Anchor {symbol_to_str(prev_symbol)} not found in receiver's graph")
+                pass # TODO: handle this case for multi-vehicle, use place recogntion to search for an anchor
+            pose = sender_gv.atPose3(symbol)
+            self.merge_node(prev_symbol, symbol, pose)
             self.graph_factors.add(factor)
 
             try:
-                self.loop_detector.addNode(symbol, content[symbol])                
+                self.loop_detector.addNode(symbol, sender_content[symbol])                
             except KeyError:
-                print(f"Key {symbol_to_str(symbol)} does not exist in content dict")
+                print(f"Key {symbol_to_str(symbol)} does not exist in sender's content dict") # TODO: This is triggering twice        
+        self.detect_all_loops()
     
-    def merge_node(self, symbol, pose):
-        try: # TODO: improve logic
+    def merge_node(self, prev_symbol, symbol, pose):
+        try: # TODO: improve handling
             self.graph_values.insert(symbol, pose)
         except RuntimeError:
-            print(f"Key {symbol_to_str(symbol)} already exists in graph")
+            print(f"Key {symbol_to_str(symbol)} already exists in graph") # TODO: This shouldn't be triggered due to node query        
+        self.graph_directory.add_node(symbol)
+        if prev_symbol:
+            self.graph_directory.add_edge(prev_symbol, symbol)
 
     def close_loop(self, symbol_1, symbol_2, yaw_diff_deg):
         symbol_1_str = symbol_to_str(symbol_1)

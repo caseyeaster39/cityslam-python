@@ -224,7 +224,7 @@ def main(args, pose_vis=True):
         plt.ion()
         visualize_pose_graph(graph, 'Pose Graph')
         # for idx in range(40, 60):
-        #     v2x_manager.rsu_list[0].brain.memory_manager.pose_graph_manager.loop_detector.plotNode(idx)
+        #     v2x_manager.rsu_list[0].brain.memory_manager.loop_detector.plotNode(idx)
 
 if __name__ == '__main__':
     args = parse_carla_args()

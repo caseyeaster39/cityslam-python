@@ -40,7 +40,7 @@ class Entity:
                       'response', data)
         
     def handle_response(self, responder_id, responder_type, data):
-        print(f"{self} received response: {type(data)} from {responder_id} {responder_type}")
+        print(f"{self} received response: {data['what']} from {responder_id} {responder_type}")
         self.brain.remember(data['data'])
         if data['what']=='graph':
             self.brain.load_graph(data['data'])
