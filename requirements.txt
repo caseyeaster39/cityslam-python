@@ -1,3 +1,4 @@
+carla==0.9.14
 gtsam==4.1.1
 matplotlib==3.5.3
 networkx==2.6.3
