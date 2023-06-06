@@ -120,15 +120,16 @@ class PoseGraphManager:
             if prev_symbol and prev_symbol not in self.graph_directory.nodes:
                 anchor_found = False
                 print(f"Anchor {symbol_to_str(prev_symbol)} not found in receiver's graph")
-                pass # TODO: handle this case for multi-vehicle, use place recogntion to search for an anchor
+                # TODO: handle this case for multi-vehicle, use place recogntion to search for an anchor
+                # TODO: For reference/inspiration: https://github.com/uzh-rpg/dslam_open, https://github.com/CogRob/distributed-mapper
             pose = sender_gv.atPose3(symbol)
             self.merge_node(prev_symbol, symbol, pose)
             self.graph_factors.add(factor)
 
-            try:
+            try: # TODO: Remove this? Since posting will handle content propagation to RSUs
                 self.loop_detector.addNode(symbol, sender_content[symbol])                
             except KeyError:
-                print(f"Key {symbol_to_str(symbol)} does not exist in sender's content dict") # TODO: This is triggering twice        
+                print(f"Key {symbol_to_str(symbol)} does not exist in sender's content dict")      
         self.detect_all_loops()
     
     def merge_node(self, prev_symbol, symbol, pose):
@@ -179,10 +180,10 @@ class PoseGraphManager:
         se3[:3, :3] = np.array([[math.cos(yaw),     -math.sin(yaw),    0],
                                 [math.sin(yaw),     math.cos(yaw),     0],
                                 [0,                 0,                 1]]) 
-        return se3    
+        return se3  
 
-class ScanContextManager:
-    def __init__(self, shape=[20,60], num_candidates=10, threshold=0.15): # defualt configs are same as the original paper 
+class ScanContextManager:# defualt configs are same as the original paper (see references)
+    def __init__(self, shape=[20,60], num_candidates=10, threshold=0.15):         
         self.shape = shape
         self.num_candidates = num_candidates
         self.threshold = threshold
@@ -195,12 +196,14 @@ class ScanContextManager:
          
     
     def generate_content(self, ptcloud, labels):
+        # TODO: How to label startup (unlabeled) data retroactively?
         return {
             'pointcloud': ptcloud,
             'scancontext': self.ptcloud2sc(ptcloud),
             'ringkey': self.sc2rk(self.ptcloud2sc(ptcloud)),
-            'rsus': labels,
-            'timestamp': time.time()
+            'rsus': copy.deepcopy(labels),
+            'timestamp': time.time(),
+            'removal': False
         }
 
     def addNode(self, symbol, content):

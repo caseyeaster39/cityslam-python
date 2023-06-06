@@ -13,14 +13,14 @@ class Brain:
     def remember(self, data):
         self.memory_manager.memories[f'{time.time()}'] = data
 
-    def recall(self, what, query=None):
-        return self.memory_manager.get_recollection(what, query)
+    def recall(self, what, query=None, flag=False):
+        return self.memory_manager.get_recollection(what, query, flag)
 
     def forget(self, what):
         if what == 'all':
             self.perception_manager.destroy_actors()
-        # TODO: forget by target id (with logic)
-        self.memory_manager.data = {}
+        if what == 'outdated':
+            self.memory_manager.clear_outdated_memories()
 
     def check_sensor(self, sensor_type):
         if self.perception_manager is None:
@@ -77,15 +77,15 @@ class MemoryManager(pose_graph.PoseGraphManager):
         self.set_loop_detector(pose_graph.ScanContextManager())
 
         self.rsu_labels = rsu_labels
-        self.memories = {}
+        self.memories = {} # TODO: Use this for VCS or delete?
 
     def keyframe(self, data):
         self.update(data, self.rsu_labels)
 
-    def get_recollection(self, what, query=None):
+    def get_recollection(self, what, query=None, flag=False):
         if what == 'graph':
-            return self.get_communication_data(existing_nodes=query, get_content=True) # TODO: conditions where get_content is False
-        elif what=='targetID': # TODO: Implement this
+            return self.get_communication_data(existing_nodes=query, get_content=flag)
+        elif what=='targetID':
             return self.get_data_by_label(query)
         elif what=='nodes':
             return self.get_nodes()
@@ -101,9 +101,22 @@ class MemoryManager(pose_graph.PoseGraphManager):
     def get_nodes(self):
         return self.graph_directory.nodes
         
-    # def get_data_by_label(self, label):
-    #     associated_data = self.label_graph[label]
-    #     pass
+    def get_data_by_label(self, label):
+        response = {}
+        for k, v in self.loop_detector.content_map.items():
+            remove = True
+            for rsu in v['rsus']:
+                if rsu == label:
+                    response[k] = v
+                if rsu in self.rsu_labels:
+                    remove = False
+            self.loop_detector.content_map[k]['removal'] = remove
+        return response        
+
+    def clear_outdated_memories(self):
+        keep = {k: self.loop_detector.content_map[k] for k in self.loop_detector.content_map.keys() 
+                if self.loop_detector.content_map[k]['removal'] == False}
+        self.loop_detector.content_map = keep
         
     # def add_node(self, node_idx, ptcloud):
     #     self.content[f'{node_idx}']['timestamp'] = time.time()

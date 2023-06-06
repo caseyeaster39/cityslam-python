@@ -146,7 +146,6 @@ def visualize_pose_graph(graph, fig_name=None):
             ax.plot([drawn[key1][0], drawn[key2][0]],
                     [drawn[key1][1], drawn[key2][1]],
                     [drawn[key1][2], drawn[key2][2]], color='k')
-    input()
 
 
 def vis_loop(world, v2x_manager, spectator):
@@ -164,7 +163,7 @@ def vis_loop(world, v2x_manager, spectator):
         if frame % v2x_manager.args.ping_every == 0:
             v2x_manager.ping()
 
-        # TODO: Make this less jerky
+        # TODO: Make spectator less jerky
         spectator_transform.location = vehicle.vehicle.get_location() + carla.Location(z=50)
         spectator_transform.rotation.yaw = vehicle.vehicle.get_transform().rotation.yaw
         spectator.set_transform(spectator_transform)
@@ -188,8 +187,9 @@ def main(args, pose_vis=True):
         v2x_manager = v2x.V2X_Manager(world, args)
 
         ### Vehicle Setup ###
-        spawn_location = carla.Transform(carla.Location(x=-103.6, y=85.8, z=0.25), 
-                                         carla.Rotation(yaw=270))
+        spawn_location = None
+        # spawn_location = carla.Transform(carla.Location(x=-103.6, y=85.8, z=0.25), 
+        #                                  carla.Rotation(yaw=270))
         v2x_manager.add_vehicle(args.filter, 'autopilot', spawn_location=spawn_location, sensors=['Lidar'], vis=True)
         vehicle_manager = v2x_manager.vehicle_list[0]
 
@@ -206,13 +206,18 @@ def main(args, pose_vis=True):
         spectator = world.get_spectator()
 
         ### RSU Setup ###
-        v2x_manager.add_rsu(carla.Location(x=-44.4, y=18.8, z=2.5), 44, [])
+        v2x_manager.add_rsu(carla.Location(x=-45, y=19, z=2.5), 40, [])
+        v2x_manager.add_rsu(carla.Location(x=100, y=24, z=2.5), 40, [])
+        v2x_manager.add_rsu(carla.Location(x=-44, y=133, z=2.5), 40, [])
+        v2x_manager.add_rsu(carla.Location(x=47, y=66, z=2.5), 40, [])
+        v2x_manager.add_rsu(carla.Location(x=107, y=11, z=2.5), 40, [])
+        v2x_manager.add_rsu(carla.Location(x=-42, y=-64, z=2.5), 40, [])
         
         ### Main Loop ###
         vis_loop(world, v2x_manager, spectator)
 
     except KeyboardInterrupt:
-        graph = v2x_manager.rsu_list[0].brain.get_graph()
+        graphs = [(rsu.brain.get_graph(), rsu.label) for rsu in v2x_manager.rsu_list]
         print('\ndestroying actors')
         world.apply_settings(original_settings)
         traffic_manager.set_synchronous_mode(False)
@@ -222,7 +227,9 @@ def main(args, pose_vis=True):
 
     if pose_vis:
         plt.ion()
-        visualize_pose_graph(graph, 'Pose Graph')
+        for graph in graphs:
+            visualize_pose_graph(graph[0], f'{graph[1]} Pose Graph')
+        input()
         # for idx in range(40, 60):
         #     v2x_manager.rsu_list[0].brain.memory_manager.loop_detector.plotNode(idx)
 

@@ -1,17 +1,17 @@
 Improve loop detection and loop closure
-data structure
-    - Just pose graph and loop detector graph
-Single Vehicle, Single RSU
-    - Implement VCS-style merging (timestamps)
 Single Vehicle, Multiple RSU
-    - Implement distributed optimization
+    - Implement content management, content distribution
 Multiple Vehicles, Multiple RSU
     - Full-sclae merging, distributed optimization, etc.
-Consider agent class (or named whatever), from which vehicles and rsus inherit
-    - Communication and structure overlap
-    - Then vehicles or rsus have their own specific functions
+    - Merging with anchor search for loop closure/place recognition
 
+Startup data for vehicles is unlabeled
+    - Propagate first label backward?
 
+Reevaluate loop nodes (probably don't need to add one every time we are merging a node to the pose graph)
+    - Posting should cover this type of data handling
+
+#######################################################3
 Future Work
     - Local-window HD maps
     - Smart traffic management, incident detection and handling
